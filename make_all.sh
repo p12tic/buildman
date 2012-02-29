@@ -35,9 +35,10 @@ show_help()
     echo "Actions:" >&2;
     echo " --build -b - builds the source tree" >&2
     echo " --clean -n - cleans the build tree" >&2
-    echo " --package -p - builds the source tree and creates a package" >&2
-    echo " --install -i - builds the source tree and creates a package and installs it" >&2
-    echo " --reinstall -I - reintalls already build packages" >&2
+    echo " --package -p - builds the source tree and creates a binary package" >&2
+    echo " --package_source -s - builds the source tree, creates a source and binary packages" >&2
+    echo " --install -i - builds the source tree, creates a binary package and installs it" >&2
+    echo " --reinstall -I - reintalls already built binary packages" >&2
     echo " --help  - displays this text" >&2
 }
 
@@ -144,7 +145,7 @@ clean()
 
     if [ -e $debian_path ]
     then
-        debs=$(find $debian_path -iname "*.deb")
+        debs=$(find $debian_path -maxdepth=1 -iname "*.deb" -o -iname "*.changes" -o -iname "*.build" -o -iname "*.dsc")
         if [ "$debs" ]
         then
             rm -f $debs
@@ -182,6 +183,7 @@ check_build()
 }
 
 #first arg carries the project name
+#second arg: if 'and_source', a source package is build. Other values are ignored
 package()
 {
     echo "Packaging project '$1'"
@@ -262,11 +264,15 @@ package()
     
     #make debian package
     pushd $tar_path > /dev/null
-    debuild --no-lintian --build-hook="$root_path/copy_build_files.sh $build_path" -k0x0374452d #&> $log_file
+    debuild --no-lintian --build-hook="$root_path/copy_build_files.sh $build_path" -sa -k0x0374452d #&> $log_file
+    
+    if [ "$2" == "and_source" ]
+    then
+        debuild --no-lintian --build-hook="$root_path/copy_build_files.sh $build_path" -S -sa -k0x0374452d #&> $log_file
+    fi
     popd > /dev/null
-
 }
-
+    
 install()
 {
     #compute required paths
@@ -301,6 +307,7 @@ else
             -f|--full_clean) action="full_clean";;
             -b|--build) action="build";;
             -p|--package) action="package";;
+            -s|--package_source) action="package_source";;
             -i|--install) action="install";;
             -I|--reinstall) action="reinstall";;
             --help) show_help; exit 1;;
@@ -369,6 +376,14 @@ case $action in
             build $p
             check_build $p
             package $p
+        done
+        ;;
+    package_source)
+        for p in $projects_to_build
+        do
+            build $p
+            check_build $p
+            package $p "and_source"
         done
         ;;
     install)
