@@ -334,20 +334,6 @@ else
     done
 fi
 
-#export functions and variables that will be needed by xargs
-export root_path
-export rel_code_path
-export rel_build_path
-export rel_debian_path
-export rel_log_path
-export log_ext
-
-export -f clean
-export -f build
-export -f reconf
-export -f check_build
-export -f package
-
 #do work
 case $action in
     full_clean)
