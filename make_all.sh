@@ -199,6 +199,13 @@ package()
     
     #find the resulting distributable tar file
     dist_file=$(find "$build_path" -iname "*$1*.tar.gz")
+    
+    if [ "$dist_file" == "" ]
+    then
+        echo "ERROR: Could not find distributable package"
+        exit 1
+    fi
+    
     base=$(expr match "$dist_file" '.*/\([^/]*\)-[0-9.]*\.tar\.gz' )
     version=$(expr match "$dist_file" '.*-\([0-9.]*\)\.tar\.gz' )
 
@@ -219,7 +226,7 @@ package()
     #check if successful
     if [ ! -e $tar_path ]
     then
-        echo "Failed to extract distributable archive to $tar_path"
+        echo "ERROR: Failed to extract distributable archive to $tar_path"
         exit 1
     fi
 
@@ -243,7 +250,7 @@ package()
             
             cp -R $tar_path/debian $debian_path/
             
-            echo "Please update the debian configs at $debian_path/debian"
+            echo "ERROR: Please update the debian configs at $debian_path/debian"
             exit 1
         fi
     fi
@@ -314,7 +321,7 @@ else
         answer=$(echo "$all_projects" | awk "/^(.* )?$p( .*)?\$/")
         if [ "$answer" == "" ]
         then
-            echo "Wrong project '$p'"
+            echo "ERROR: Wrong project '$p'"
             exit 1
         fi
     done
@@ -383,7 +390,7 @@ case $action in
         done
         ;;
     *)
-        echo "Wrong action $action !"
+        echo "ERROR: Wrong action $action !"
         exit 1;
         ;;
 esac
