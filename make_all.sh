@@ -297,13 +297,28 @@ show_help()
     echo "make_all.sh [action] [projects ...] " >&2
     echo "" >&2
     echo "Actions:" >&2;
-    echo " --build -b - builds the source tree" >&2
-    echo " --clean -n - cleans the build tree" >&2
-    echo " --package -p - builds the source tree and creates a binary package" >&2
-    echo " --package_source -s - builds the source tree, creates a source and binary packages" >&2
-    echo " --install -i - builds the source tree, creates a binary package and installs it" >&2
-    echo " --reinstall -I - reintalls already built binary packages" >&2
-    echo " --debinstall -d - installs already build binary packages to a local repository" >&2
+    echo "" >&2
+    echo " --build -b - builds the source tree\n" >&2
+    echo "" >&2
+    echo " --clean -n - cleans the build tree\n" >&2
+    echo "" >&2
+    echo " --package -p - builds the source tree and creates a binary package\n" >&2
+    echo "" >&2
+    echo " --package_source -s - builds the source tree, creates a source and \n" \
+         "   binary packages" >&2
+    echo "" >&2
+    echo " --install -i - builds the source tree, creates a binary package and\n" \
+         "   installs it both to the system and to a local repository" >&2
+    echo "" >&2
+    echo " --reinstall -I - reintalls already built binary packages both to the\n" \
+         "   system and to a local repository" >&2
+    echo "" >&2
+    echo " --debinstall -d - builds the source tree, creates a binary package \n" \
+         "   and installs it only to a local repository" >&2
+    echo "" >&2
+    echo " --debreinstall -D - reintalls already built binary packages to a\n" \
+         "   local repository" >&2
+    echo "" >&2
     echo " --help  - displays this text" >&2
 }
 
@@ -329,6 +344,7 @@ else
             -i|--install) action="install";;
             -I|--reinstall) action="reinstall";;
             -d|--debinstall) action="debinstall";;
+            -D|--debreinstall) action="debreinstall";;
             --help) show_help; exit 1;;
             *)  projects_to_build="$projects_to_build $1";;
         esac
@@ -414,7 +430,18 @@ case $action in
     debinstall)
         for p in $projects_to_build
         do
-            echo "Adding project to repository: $p"
+            build $p
+            check_build $p
+            package $p
+
+            echo "Installing project: $p"
+            debinstall $p
+        done
+        ;;
+    debreinstall)
+        for p in $projects_to_build
+        do
+            echo "Installing project: $p"
             debinstall $p
         done
         ;;
