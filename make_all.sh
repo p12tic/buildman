@@ -39,6 +39,7 @@ show_help()
     echo " --package_source -s - builds the source tree, creates a source and binary packages" >&2
     echo " --install -i - builds the source tree, creates a binary package and installs it" >&2
     echo " --reinstall -I - reintalls already built binary packages" >&2
+    echo " --debinstall -d - installs already build binary packages to a local repository" >&2
     echo " --help  - displays this text" >&2
 }
 
@@ -266,7 +267,7 @@ package()
     pushd $tar_path > /dev/null
     debuild --no-lintian --build-hook="$root_path/copy_build_files.sh $build_path" -sa -k0x0374452d #&> $log_file
     
-    if [ "$2" == "and_source" ]
+    if [ "${2+xxx}" == "and_source" ]
     then
         debuild --no-lintian --build-hook="$root_path/copy_build_files.sh $build_path" -S -sa -k0x0374452d #&> $log_file
     fi
@@ -285,7 +286,24 @@ install()
     pushd "$debian_path" > /dev/null
     deb_packages=$(echo *.deb)
     gksu "dpkg -i $deb_packages"
+    popd > /dev/null
+}
+
+debinstall()
+{
+    #compute required paths
+    log_file="$root_path/$rel_log_path/$1.$log_ext"
+    code_path="$root_path/$rel_code_path/$1"
+    build_path="$root_path/$rel_build_path/$1"
+    debian_path="$root_path/$rel_debian_path/$1"
+
+    #install the package(s)
+    pushd "$debian_path" > /dev/null
+    deb_packages=$(echo *.deb)
     cp -f $deb_packages $archive_path
+    pushd "$archive_path" > /dev/null
+    ./reload
+    popd > /dev/null
     popd > /dev/null
 }
 
@@ -310,6 +328,7 @@ else
             -s|--package_source) action="package_source";;
             -i|--install) action="install";;
             -I|--reinstall) action="reinstall";;
+            -d|--debinstall) action="debinstall";;
             --help) show_help; exit 1;;
             *)  projects_to_build="$projects_to_build $1";;
         esac
@@ -381,6 +400,7 @@ case $action in
 
             echo "Installing project: $p"
             install $p
+            debinstall $p
         done
         ;;
     reinstall)
@@ -388,6 +408,14 @@ case $action in
         do
             echo "Installing project: $p"
             install $p
+            debinstall $p
+        done
+        ;;
+    debinstall)
+        for p in $projects_to_build
+        do
+            echo "Adding project to repository: $p"
+            debinstall $p
         done
         ;;
     *)
