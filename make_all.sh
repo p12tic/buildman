@@ -25,24 +25,6 @@ all_projects="compiz-panel-session
               sim-gas
               "
 
-#shows the available options to the stderr
-show_help()
-{
-    echo "Usage:" >&2
-    echo "" >&2
-    echo "make_all.sh [action] [projects ...] " >&2
-    echo "" >&2
-    echo "Actions:" >&2;
-    echo " --build -b - builds the source tree" >&2
-    echo " --clean -n - cleans the build tree" >&2
-    echo " --package -p - builds the source tree and creates a binary package" >&2
-    echo " --package_source -s - builds the source tree, creates a source and binary packages" >&2
-    echo " --install -i - builds the source tree, creates a binary package and installs it" >&2
-    echo " --reinstall -I - reintalls already built binary packages" >&2
-    echo " --debinstall -d - installs already build binary packages to a local repository" >&2
-    echo " --help  - displays this text" >&2
-}
-
 #first arg carries the project name
 build() 
 {
@@ -305,6 +287,24 @@ debinstall()
     ./reload
     popd > /dev/null
     popd > /dev/null
+}
+
+#shows the available options to the stderr
+show_help()
+{
+    echo "Usage:" >&2
+    echo "" >&2
+    echo "make_all.sh [action] [projects ...] " >&2
+    echo "" >&2
+    echo "Actions:" >&2;
+    echo " --build -b - builds the source tree" >&2
+    echo " --clean -n - cleans the build tree" >&2
+    echo " --package -p - builds the source tree and creates a binary package" >&2
+    echo " --package_source -s - builds the source tree, creates a source and binary packages" >&2
+    echo " --install -i - builds the source tree, creates a binary package and installs it" >&2
+    echo " --reinstall -I - reintalls already built binary packages" >&2
+    echo " --debinstall -d - installs already build binary packages to a local repository" >&2
+    echo " --help  - displays this text" >&2
 }
 
 projects_to_build=""
