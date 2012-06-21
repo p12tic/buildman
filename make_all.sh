@@ -9,6 +9,7 @@ archive_path=/home/exec/downloads/apt/
 rel_code_path="code"
 rel_build_path="build"
 rel_debian_path="debian"
+rel_pkg_path="packaging"
 rel_log_path="log"
 
 log_ext="build_log"
@@ -176,6 +177,7 @@ package()
     code_path="$root_path/$rel_code_path/$1"
     build_path="$root_path/$rel_build_path/$1"
     debian_path="$root_path/$rel_debian_path/$1"
+    pkg_path="$root_path/$rel_pkg_path/$1"
 
     #make distributable
     pushd "$build_path" > /dev/null
@@ -219,10 +221,10 @@ package()
     if [ ! -e $tar_path/debian ]
     then
         #debian config folder is not distributed
-        if [ -e $debian_path/debian ]
+        if [ -e $pkg_path/debian ]
         then
-            #found one in parent dir
-            cp -rL $debian_path/debian $tar_path/
+            #found one in packaging dir
+            cp -rL $pkg_path/debian $tar_path/
         elif [ -e $code_path/debian ]
         then
             #found one in code dir
