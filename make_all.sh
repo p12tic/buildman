@@ -298,26 +298,26 @@ show_help()
     echo "" >&2
     echo "Actions:" >&2;
     echo "" >&2
-    echo " --build -b - builds the source tree\n" >&2
+    echo " --build -b - builds the source tree" >&2
     echo "" >&2
-    echo " --clean -n - cleans the build tree\n" >&2
+    echo " --clean -n - cleans the build tree" >&2
     echo "" >&2
-    echo " --package -p - builds the source tree and creates a binary package\n" >&2
+    echo " --package -p - builds the source tree and creates a binary package" >&2
     echo "" >&2
-    echo " --package_source -s - builds the source tree, creates a source and \n" \
-         "   binary packages" >&2
+    echo " --package_source -s - builds the source tree, creates a source and " >&2
+    echo "   binary packages" >&2
     echo "" >&2
-    echo " --install -i - builds the source tree, creates a binary package and\n" \
-         "   installs it both to the system and to a local repository" >&2
+    echo " --install -i - builds the source tree, creates a binary package and" >&2
+    echo "   installs it both to the system and to a local repository" >&2
     echo "" >&2
-    echo " --reinstall -I - reintalls already built binary packages both to the\n" \
-         "   system and to a local repository" >&2
+    echo " --reinstall -I - reintalls already built binary packages both to the" >&2
+    echo "   system and to a local repository" >&2
     echo "" >&2
-    echo " --debinstall -d - builds the source tree, creates a binary package \n" \
-         "   and installs it only to a local repository" >&2
+    echo " --debinstall -d - builds the source tree, creates a binary package " >&2
+    echo "   and installs it only to a local repository" >&2
     echo "" >&2
-    echo " --debreinstall -D - reintalls already built binary packages to a\n" \
-         "   local repository" >&2
+    echo " --debreinstall -D - reintalls already built binary packages to a" >&2
+    echo "   local repository" >&2
     echo "" >&2
     echo " --help  - displays this text" >&2
 }
