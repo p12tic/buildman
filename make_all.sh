@@ -14,11 +14,11 @@ rel_log_path="log"
 log_ext="build_log"
 
 all_projects="compiz-panel-session
-              libpeach-core 
+              libpeach-core
               libpeach-sse
-              libpeach-audio 
-              dupremove 
-              paswman 
+              libpeach-audio
+              dupremove
+              paswman
               cppreference-doc
               pkan-bundle
               libgwtmm
@@ -26,7 +26,7 @@ all_projects="compiz-panel-session
               "
 
 #first arg carries the project name
-build() 
+build()
 {
     echo "Configuring project '$1'"
 
@@ -34,7 +34,7 @@ build()
     log_file="$root_path/$rel_log_path/$1.$log_ext"
     code_path="$root_path/$rel_code_path/$1"
     build_path="$root_path/$rel_build_path/$1"
-    
+
     #check for autoconf
     if [ -f "$code_path/configure" -o -f "$code_path/configure.ac" ]
     then
@@ -46,7 +46,7 @@ build()
             mkdir -p "$build_path"
             build_mtime=0
         fi
-    
+
         ac_mtime=$(stat --format=%Y "$code_path/configure.ac")
         if [ -f "$code_path/configure" ]
         then
@@ -54,7 +54,7 @@ build()
         else
             c_mtime=0
         fi
-        
+
         #rerun autoreconf if needed
         if [ $c_mtime -lt $ac_mtime ]
         then
@@ -63,28 +63,28 @@ build()
             popd > /dev/null
             c_mtime=$(stat --format=%Y "$code_path/configure")
         fi
-        
+
         #reconfigure if needed
         if [ $build_mtime -lt $c_mtime ]
         then
             rm -rf "$build_path"
             mkdir -p "$build_path"
-            
+
             pushd "$build_path" > /dev/null
             $code_path/configure #&> $log_file
             popd > /dev/null
         fi
-        
+
         #build
         echo "Building project '$1'"
-        
+
         pushd "$build_path" > /dev/null
         make all -j4 #&> $log_file
         popd > /dev/null
-        
+
     else
         #simple makefile project. Rebuild everything on any update in the source tree
-        
+
         #get modification time of the build directory, create if it does not exist
         if [ -d "$build_path" ]
         then
@@ -93,17 +93,17 @@ build()
             mkdir -p "$build_path"
             build_mtime=0
         fi
-        
+
         c_mtime=$(find -L "$code_path"  -not -path "./.git*" -exec stat --format "%Y" \{} \; | sort -n -r | head -1)
-        
+
         if [ $build_mtime -lt $c_mtime ]
         then
             echo "Building project '$1'"
-            
+
             rm -rf "$build_path"
             mkdir -p "$build_path"
             cp -rTL "$code_path" "$build_path"
-            
+
             pushd "$build_path" > /dev/null
             make all -j4 #&> $log_file
             popd > /dev/null
@@ -181,16 +181,16 @@ package()
     pushd "$build_path" > /dev/null
     make dist #&> $log_file
     popd > /dev/null
-    
+
     #find the resulting distributable tar file
     dist_file=$(find "$build_path" -iname "*$1*.tar.gz")
-    
+
     if [ "$dist_file" == "" ]
     then
         echo "ERROR: Could not find distributable package"
         exit 1
     fi
-    
+
     base=$(expr match "$dist_file" '.*/\([^/]*\)-[0-9.]*\.tar\.gz' )
     version=$(expr match "$dist_file" '.*-\([0-9.]*\)\.tar\.gz' )
 
@@ -199,10 +199,10 @@ package()
 
     #make the debian dir
     mkdir -p $debian_path
-    
+
     #move the distributable to the destination directory and cleanly extract it
     mv $dist_file $tar_file
-    if [ -e $tar_path ] 
+    if [ -e $tar_path ]
     then
         rm -rf $tar_path
     fi
@@ -232,9 +232,9 @@ package()
             pushd $tar_path > /dev/null
             dh_make -f $tar_file
             popd > /dev/null
-            
+
             cp -R $tar_path/debian $debian_path/
-            
+
             echo "ERROR: Please update the debian configs at $debian_path/debian"
             exit 1
         fi
@@ -244,18 +244,18 @@ package()
     pushd $debian_path > /dev/null
     find . -iname "*.deb" -exec rm -f '{}' \;
     popd > /dev/null
-    
+
     #make debian package
     pushd $tar_path > /dev/null
     debuild --no-lintian --build-hook="$root_path/copy_build_files.sh $build_path" -sa -k0x0374452d #&> $log_file
-    
+
     if [ "${2+xxx}" == "and_source" ]
     then
         debuild --no-lintian --build-hook="$root_path/copy_build_files.sh $build_path" -S -sa -k0x0374452d #&> $log_file
     fi
     popd > /dev/null
 }
-    
+
 install()
 {
     #compute required paths
@@ -332,7 +332,7 @@ then
     action="install"
 else
     action="i"
-    
+
     while [ "$#" -gt "0" ]
     do
         case $1 in
@@ -350,7 +350,7 @@ else
         esac
         shift
     done
-    
+
     if [ "$action" == "i" ]
     then
         echo "Defaulting to compile+package+install"
@@ -384,10 +384,10 @@ case $action in
             clean $p
         done
         ;;
-    build) 
+    build)
         for p in $projects_to_build
         do
-            build $p 
+            build $p
             check_build $p
         done
         ;;
