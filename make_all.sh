@@ -8,15 +8,16 @@ archive_path=/home/exec/downloads/apt/
 
 rel_code_path="code"
 rel_build_path="build"
-rel_debian_path="debian"
+rel_build_pkg_path="build_packaging"
 rel_pkg_path="packaging"
 rel_log_path="log"
 
 log_ext="build_log"
 
 all_projects="compiz-panel-session
+              libbpk
               libpeach-core
-              libpeach-sse
+              libsimdpp
               libpeach-audio
               dupremove
               paswman
@@ -119,7 +120,7 @@ clean()
 
     #compute required paths
     build_path="$root_path/$rel_build_path/$1"
-    debian_path="$root_path/$rel_debian_path/$1"
+    build_pkg_path="$root_path/$rel_build_pkg_path/$1"
     code_path="$root_path/$rel_code_path/$1"
 
     if [ -e $build_path ]
@@ -127,9 +128,9 @@ clean()
         rm -rf "$build_path"
     fi
 
-    if [ -e $debian_path ]
+    if [ -e $build_pkg_path ]
     then
-        debs=$(find $debian_path -maxdepth=1 -iname "*.deb" -o -iname "*.changes" -o -iname "*.build" -o -iname "*.dsc")
+        debs=$(find $build_pkg_path -maxdepth 1 -iname "*.deb" -o -iname "*.changes" -o -iname "*.build" -o -iname "*.dsc")
         if [ "$debs" ]
         then
             rm -f $debs
@@ -176,7 +177,7 @@ package()
     log_file="$root_path/$rel_log_path/$1.$log_ext"
     code_path="$root_path/$rel_code_path/$1"
     build_path="$root_path/$rel_build_path/$1"
-    debian_path="$root_path/$rel_debian_path/$1"
+    build_pkg_path="$root_path/$rel_build_pkg_path/$1"
     pkg_path="$root_path/$rel_pkg_path/$1"
 
     #make distributable
@@ -196,11 +197,11 @@ package()
     base=$(expr match "$dist_file" '.*/\([^/]*\)-[0-9.]*\.tar\.gz' )
     version=$(expr match "$dist_file" '.*-\([0-9.]*\)\.tar\.gz' )
 
-    tar_file=$debian_path/$base"_"$version.orig.tar.gz
-    tar_path=$debian_path/$base-$version
+    tar_file=$build_pkg_path/$base"_"$version.orig.tar.gz
+    tar_path=$build_pkg_path/$base-$version
 
     #make the debian dir
-    mkdir -p $debian_path
+    mkdir -p $build_pkg_path
 
     #move the distributable to the destination directory and cleanly extract it
     mv $dist_file $tar_file
@@ -208,7 +209,7 @@ package()
     then
         rm -rf $tar_path
     fi
-    tar -xzf $tar_file -C $debian_path/
+    tar -xzf $tar_file -C $build_pkg_path/
 
     #check if successful
     if [ ! -e $tar_path ]
@@ -235,15 +236,15 @@ package()
             dh_make -f $tar_file
             popd > /dev/null
 
-            cp -R $tar_path/debian $debian_path/
+            cp -R $tar_path/debian $build_pkg_path/
 
-            echo "ERROR: Please update the debian configs at $debian_path/debian"
+            echo "ERROR: Please update the debian configs at $build_pkg_path/debian"
             exit 1
         fi
     fi
 
     #clear the directory
-    pushd $debian_path > /dev/null
+    pushd $build_pkg_path > /dev/null
     find . -iname "*.deb" -exec rm -f '{}' \;
     popd > /dev/null
 
@@ -264,10 +265,10 @@ install()
     log_file="$root_path/$rel_log_path/$1.$log_ext"
     code_path="$root_path/$rel_code_path/$1"
     build_path="$root_path/$rel_build_path/$1"
-    debian_path="$root_path/$rel_debian_path/$1"
+    build_pkg_path="$root_path/$rel_build_pkg_path/$1"
 
     #install the package(s)
-    pushd "$debian_path" > /dev/null
+    pushd "$build_pkg_path" > /dev/null
     deb_packages=$(echo *.deb)
     gksu "dpkg -i $deb_packages"
     popd > /dev/null
@@ -279,10 +280,10 @@ debinstall()
     log_file="$root_path/$rel_log_path/$1.$log_ext"
     code_path="$root_path/$rel_code_path/$1"
     build_path="$root_path/$rel_build_path/$1"
-    debian_path="$root_path/$rel_debian_path/$1"
+    build_pkg_path="$root_path/$rel_build_pkg_path/$1"
 
     #install the package(s)
-    pushd "$debian_path" > /dev/null
+    pushd "$build_pkg_path" > /dev/null
     deb_packages=$(echo *.deb)
     cp -f $deb_packages $archive_path
     pushd "$archive_path" > /dev/null
