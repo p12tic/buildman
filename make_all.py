@@ -25,6 +25,10 @@ project_dirs = [
     root_path + 'local/'
     ]
 
+def out(s):
+    sys.stdout.write(s + '\n')
+    sys.stdout.flush()
+
 def get_log_path(proj_name):
     global log_path
     return os.path.join(log_path, proj_name)
@@ -56,7 +60,7 @@ def get_dir_mtime(path):
     return max_mtime
 
 def build(proj_name, proj_dir):
-    print 'Configuring project \'' + proj_name + '\''
+    out('Configuring project \'' + proj_name + '\'')
 
     #compute required paths
     log_file = get_log_path(proj_name)
@@ -94,7 +98,7 @@ def build(proj_name, proj_dir):
             call(code_path + '/configure', shell=True, cwd=build_path) #log_file
 
         #build
-        print 'Building project \'' + proj_name + '\''
+        out('Building project \'' + proj_name + '\'')
 
         call('make all -j4', shell=True, cwd=build_path) #log_file
 
@@ -111,7 +115,7 @@ def build(proj_name, proj_dir):
         c_mtime = get_dir_mtime(code_path)
 
         if (build_mtime < c_mtime):
-            print 'Building project \'' + proj_name + '\''
+            out('Building project \'' + proj_name + '\'')
 
             shutil.rmtree(build_path)
             shutil.copytree(code_path, build_path)
@@ -119,7 +123,7 @@ def build(proj_name, proj_dir):
             call('make all -j4', shell=True, cwd=build_path) #log_file
 
 def clean(proj_name, proj_dir):
-    print 'Cleaning project \'' + proj_name + '\''
+    out('Cleaning project \'' + proj_name + '\'')
 
     #compute required paths
     code_path = get_code_path(proj_name, proj_dir)
@@ -139,7 +143,7 @@ def clean(proj_name, proj_dir):
                 os.remove(os.path.join(build_pkg_path, f))
 
 def reconf(proj_name, proj_dir):
-    print 'Reconfiguring project \'' + proj_name + '\''
+    out('Reconfiguring project \'' + proj_name + '\'')
 
     #compute required paths
     code_path = get_code_path(proj_name, proj_dir)
@@ -150,7 +154,7 @@ def check_build(proj_name, proj_dir,do_check=True):
     if not do_check:
         return
 
-    print 'Checking project \'' + proj_name + '\''
+    out('Checking project \'' + proj_name + '\'')
 
     #compute required paths
     log_file = get_log_path(proj_name)
@@ -163,7 +167,7 @@ def check_build(proj_name, proj_dir,do_check=True):
 #first arg carries the project name
 #second arg: if 'and_source', a source package is build. Other values are ignored
 def package(proj_name, proj_dir, and_source=False):
-    print 'Packaging project \'' + proj_name + '\''
+    out('Packaging project \'' + proj_name + '\'')
 
     #compute required paths
     log_file = get_log_path(proj_name)
@@ -193,8 +197,6 @@ def package(proj_name, proj_dir, and_source=False):
         for tgz in tgzs:
             score = 0
             for word in words:
-                print word
-                print tgz
                 if tgz.find(word) != -1:
                     score += len(word)
             if score > max_score:
@@ -205,12 +207,12 @@ def package(proj_name, proj_dir, and_source=False):
             dist_file = max_tgz
 
     if dist_file == None:
-        print "ERROR: Could not find distributable package"
+        out("ERROR: Could not find distributable package")
         sys.exit(1)
 
     m = re.match('^(.*)-([0-9.]*)\.tar\.gz$', dist_file, re.I)
     if not m:
-        print 'ERROR: could not parse the filename of an archive ' + dist_file
+        out('ERROR: could not parse the filename of an archive ' + dist_file)
         sys.exit(1)
 
     base = m.group(1)
@@ -232,7 +234,7 @@ def package(proj_name, proj_dir, and_source=False):
 
     #check if successful
     if not os.path.isdir(tar_path):
-        print "ERROR: Failed to extract distributable archive to " + tar_path
+        out("ERROR: Failed to extract distributable archive to " + tar_path)
         sys.exit(1)
 
     #check for debian config folder, create one using dh_make if not existing
@@ -249,7 +251,7 @@ def package(proj_name, proj_dir, and_source=False):
             call('dh_make -f ' + tar_file, shell=True, cwd=tar_path) #log_file
             shutil.copytree(tar_path + '/debian', build_pkg_path + '/debian')
 
-            print "ERROR: Please update the debian configs at $build_pkg_path/debian"
+            out("ERROR: Please update the debian configs at $build_pkg_path/debian")
             sys.exit(1)
 
     #clear the directory
@@ -260,14 +262,14 @@ def package(proj_name, proj_dir, and_source=False):
     r = call('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -sa -k0x0374452d ',
              shell=True, cwd=tar_path) #log_file
     if r != 0:
-        print "ERROR: Building project "+ proj_name + " failed"
+        out("ERROR: Building project "+ proj_name + " failed")
         sys.exit(1)
 
     if (and_source == True):
         r = call('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -S -sa -k0x0374452d ',
                  shell=True, cwd=tar_path) #log_file
         if r != 0:
-            print "ERROR: Building project "+ proj_name + " failed"
+            out("ERROR: Building project "+ proj_name + " failed")
             sys.exit(1)
 
 def install(proj_name, proj_dir):
@@ -352,11 +354,11 @@ for proj_dir in project_dirs:
 
 # parse arguments
 if (len(sys.argv) <= 1):
-    print "ERROR: no name of project provided"
-    print "Available projects: "
+    out("ERROR: no name of project provided")
+    out("Available projects: ")
 
     for d,p in available_projects:
-        print '\"' + p + '\"' + ' in directory ' + d
+        out( '\"' + p + '\"' + ' in directory ' + d)
     sys.exit(1)
 
 action=None
@@ -400,15 +402,15 @@ for proj in projects_to_build:
             checked_projects.append((d, p))
 
 if len(checked_projects) > 0:
-    print "Found projects: "
+    out("Found projects: ")
     for d,p in checked_projects:
-        print '\"' + p + '\"' + ' in directory ' + d
+        out('\"' + p + '\"' + ' in directory ' + d)
 else:
-    print "ERROR: Project not found. Abort. "
+    out("ERROR: Project not found. Abort. ")
     sys.exit(1)
 
 if (action == None):
-    print "ERROR: Action not specified. Defaulting to compile+package+install"
+    out("ERROR: Action not specified. Defaulting to compile+package+install")
     action = "install"
 
 # do work
@@ -444,13 +446,13 @@ elif (action == 'install'):
         check_build(p,d,do_check)
         package(p,d)
 
-        print "Installing project: " + p
+        out("Installing project: " + p)
         install(p,d)
         debinstall(p,d)
 
 elif (action == 'reinstall'):
     for (d,p) in checked_projects:
-        print "Installing project: " + p
+        out("Installing project: " + p)
         install(p,d)
         debinstall(p,d)
 
@@ -460,17 +462,17 @@ elif (action == 'debinstall'):
         check_build(p,d,do_check)
         package(p,d)
 
-        print "Installing project: " + p
+        out("Installing project: " + p)
         debinstall(p,d)
 
 elif (action == 'debreinstall'):
     for (d,p) in checked_projects:
-        print "Installing project: " + p
+        out("Installing project: " + p)
         debinstall(p,d)
 
 else:
-    print "ERROR: Wrong action!" + action
+    out("ERROR: Wrong action!" + action)
     sys.exit(1)
 
-print "Success!"
+out("Success!")
 
