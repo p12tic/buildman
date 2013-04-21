@@ -67,9 +67,9 @@ def build(proj_name, proj_dir):
     code_path = get_code_path(proj_name, proj_dir)
     build_path = get_build_path(proj_name)
 
-    #check for autoconf
     if (os.path.exists(code_path + '/configure') or
         os.path.exists(code_path + '/configure.ac')):
+        #autotools project
 
         #get modification time of the build directory, create if it does not exist
 
@@ -99,7 +99,19 @@ def build(proj_name, proj_dir):
 
         #build
         out('Building project \'' + proj_name + '\'')
+        call('make all -j4', shell=True, cwd=build_path) #log_file
 
+    elif os.path.exists(code_path + '/CMakeLists.txt'):
+        # cmake project
+
+        if not os.path.isdir(build_path):
+            os.makedirs(build_path)
+
+        cmd = 'cmake \'' + code_path + '\''
+        out(cmd)
+        call('cmake \"' + code_path + '\"' , shell=True, cwd=build_path) #log_file
+
+        out('Building project \'' + proj_name + '\'')
         call('make all -j4', shell=True, cwd=build_path) #log_file
 
     else:
@@ -148,7 +160,11 @@ def reconf(proj_name, proj_dir):
     #compute required paths
     code_path = get_code_path(proj_name, proj_dir)
 
-    call('autoreconf', shell=True, cwd=code_path) #log_file
+    if os.path.exists(code_path + '/configure.ac'):
+        call('autoreconf', shell=True, cwd=code_path) #log_file
+    elif os.path.exists(code_path + '/CMakeLists.txt'):
+        call('cmake .', shell=True, cwd=code_path) #log_file
+
 
 def check_build(proj_name, proj_dir,do_check=True):
     if not do_check:
