@@ -25,6 +25,12 @@ project_dirs = [
     root_path + 'local/'
     ]
 
+def sh(cmd, cwd):
+    code = call(cmd, shell=True, cwd=cwd)
+    if code != 0:
+        sys.exit(code)
+    return code
+
 def out(s):
     sys.stdout.write(s + '\n')
     sys.stdout.flush()
@@ -87,7 +93,7 @@ def build(proj_name, proj_dir):
 
         #rerun autoconf if needed
         if c_mtime < ac_mtime:
-            call('autoconf; automake', shell=True, cwd=code_path)
+            sh('autoconf; automake', cwd=code_path)
             c_mtime = os.path.getmtime(code_path + '/configure')
 
         #reconfigure if needed
@@ -95,11 +101,11 @@ def build(proj_name, proj_dir):
         if build_mtime < c_mtime:
             shutil.rmtree(build_path)
             os.makedirs(build_path)
-            call(code_path + '/configure', shell=True, cwd=build_path) #log_file
+            sh(code_path + '/configure', cwd=build_path) #log_file
 
         #build
         out('Building project \'' + proj_name + '\'')
-        call('make all -j4', shell=True, cwd=build_path) #log_file
+        sh('make all -j4', cwd=build_path) #log_file
 
     elif os.path.exists(code_path + '/CMakeLists.txt'):
         # cmake project
@@ -109,10 +115,10 @@ def build(proj_name, proj_dir):
 
         cmd = 'cmake \'' + code_path + '\''
         out(cmd)
-        call('cmake \"' + code_path + '\"' , shell=True, cwd=build_path) #log_file
+        sh('cmake \"' + code_path + '\"' , cwd=build_path) #log_file
 
         out('Building project \'' + proj_name + '\'')
-        call('make all -j4', shell=True, cwd=build_path) #log_file
+        sh('make all -j4', cwd=build_path) #log_file
 
     else:
         #simple makefile project. Rebuild everything on any update in the source tree
@@ -132,7 +138,7 @@ def build(proj_name, proj_dir):
             shutil.rmtree(build_path)
             shutil.copytree(code_path, build_path)
 
-            call('make all -j4', shell=True, cwd=build_path) #log_file
+            sh('make all -j4', cwd=build_path) #log_file
 
 def clean(proj_name, proj_dir):
     out('Cleaning project \'' + proj_name + '\'')
@@ -161,9 +167,9 @@ def reconf(proj_name, proj_dir):
     code_path = get_code_path(proj_name, proj_dir)
 
     if os.path.exists(code_path + '/configure.ac'):
-        call('autoreconf', shell=True, cwd=code_path) #log_file
+        sh('autoreconf', cwd=code_path) #log_file
     elif os.path.exists(code_path + '/CMakeLists.txt'):
-        call('cmake .', shell=True, cwd=code_path) #log_file
+        sh('cmake .', cwd=code_path) #log_file
 
 
 def check_build(proj_name, proj_dir,do_check=True):
@@ -177,8 +183,8 @@ def check_build(proj_name, proj_dir,do_check=True):
     build_path = get_build_path(proj_name)
 
     # launch make check
-    call('make check -j2', shell=True, cwd=build_path) #log_file
-    #call('make distcheck', shell=True, cwd=build_path) #log_file
+    sh('make check -j2', cwd=build_path) #log_file
+    #sh('make distcheck', cwd=build_path) #log_file
 
 #first arg carries the project name
 #second arg: if 'and_source', a source package is build. Other values are ignored
@@ -193,7 +199,7 @@ def package(proj_name, proj_dir, and_source=False):
     pkg_path = get_pkg_path(proj_name)
 
     #make distributable
-    call('make dist', shell=True, cwd=build_path) #log_file
+    sh('make dist', cwd=build_path) #log_file
 
     # find the resulting distributable tar file. Loosely match with the projects
     # name, take the the tgz which matches the largest number of words in the
@@ -246,7 +252,7 @@ def package(proj_name, proj_dir, and_source=False):
     if os.path.isdir(tar_path):
         shutil.rmtree(tar_path)
 
-    call(['tar', '-xzf', tar_file, '-C', build_pkg_path], cwd=build_pkg_path)
+    sh(['tar', '-xzf', tar_file, '-C', build_pkg_path], cwd=build_pkg_path)
 
     #check if successful
     if not os.path.isdir(tar_path):
@@ -264,26 +270,26 @@ def package(proj_name, proj_dir, and_source=False):
             shutil.copytree(code_path + '/debian', tar_path + '/debian')
         else:
             #no debian config folder exists -> create one and fail
-            call('dh_make -f ' + tar_file, shell=True, cwd=tar_path) #log_file
+            sh('dh_make -f ' + tar_file, cwd=tar_path) #log_file
             shutil.copytree(tar_path + '/debian', build_pkg_path + '/debian')
 
             out("ERROR: Please update the debian configs at $build_pkg_path/debian")
             sys.exit(1)
 
     #clear the directory
-    call('find . -iname "*.deb" -exec rm -f \'{}\' \;', shell=True, cwd=build_pkg_path) #log_file
+    sh('find . -iname "*.deb" -exec rm -f \'{}\' \;', cwd=build_pkg_path) #log_file
 
     #make debian package
     global root_path
-    r = call('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -sa -k0x0374452d ',
-             shell=True, cwd=tar_path) #log_file
+    r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -sa -k0x0374452d ',
+             cwd=tar_path) #log_file
     if r != 0:
         out("ERROR: Building project "+ proj_name + " failed")
         sys.exit(1)
 
     if (and_source == True):
-        r = call('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -S -sa -k0x0374452d ',
-                 shell=True, cwd=tar_path) #log_file
+        r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -S -sa -k0x0374452d ',
+                 cwd=tar_path) #log_file
         if r != 0:
             out("ERROR: Building project "+ proj_name + " failed")
             sys.exit(1)
@@ -293,7 +299,7 @@ def install(proj_name, proj_dir):
     build_pkg_path = get_build_pkg_path(proj_name)
 
     #install the package(s)
-    call('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', shell=True, cwd=build_pkg_path) #log_file
+    sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=build_pkg_path) #log_file
 
 def debinstall(proj_name, proj_dir):
     #compute required paths
@@ -311,7 +317,7 @@ def debinstall(proj_name, proj_dir):
     for deb in debs:
         if deb.endswith('.deb'):
             shutil.copyfile(build_pkg_path + '/' + deb, archive_path + '/' + deb)
-    call('./reload', shell=True, cwd=archive_path) #log_file
+    sh('./reload', cwd=archive_path) #log_file
 
 #shows the available options to the stderr
 def show_help():
