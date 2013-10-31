@@ -27,15 +27,16 @@ project_dirs = [
     root_path + 'local/'
     ]
 
-def sh(cmd, cwd):
-    code = call(cmd, shell=True, cwd=cwd)
-    if code != 0:
-        sys.exit(code)
-    return code
-
 def out(s):
     sys.stdout.write(s + '\n')
     sys.stdout.flush()
+
+def sh(cmd, cwd):
+    code = call(cmd, shell=True, cwd=cwd)
+    if code != 0:
+        out('ERROR: Command \'' + cmd + '\' returned code ' + str(code))
+        sys.exit(code)
+    return code
 
 def get_log_path(proj_name):
     global log_path
