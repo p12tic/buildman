@@ -255,7 +255,7 @@ def package(proj_name, proj_dir, and_source=False):
     if os.path.isdir(tar_path):
         shutil.rmtree(tar_path)
 
-    sh(['tar', '-xzf', tar_file, '-C', build_pkg_path], cwd=build_pkg_path)
+    sh('tar -xzf ' + tar_file + ' -C ' + build_pkg_path, cwd=build_pkg_path)
 
     #check if successful
     if not os.path.isdir(tar_path):
