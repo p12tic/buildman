@@ -13,6 +13,8 @@ archive_path = os.environ['HOME'] + '/downloads/apt/'
 
 copy_build_files_path = root_path + '/../my/copy_build_files.sh'
 
+num_processors = 2
+
 build_path =     root_path + "build/"
 build_pkg_path = root_path + "build_packaging/"
 pkg_path =       root_path + "packaging/"
@@ -105,7 +107,7 @@ def build(proj_name, proj_dir):
 
         #build
         out('Building project \'' + proj_name + '\'')
-        sh('make all -j4', cwd=build_path) #log_file
+        sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
     elif os.path.exists(code_path + '/CMakeLists.txt'):
         # cmake project
@@ -118,7 +120,7 @@ def build(proj_name, proj_dir):
         sh('cmake \"' + code_path + '\"' , cwd=build_path) #log_file
 
         out('Building project \'' + proj_name + '\'')
-        sh('make all -j4', cwd=build_path) #log_file
+        sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
     else:
         #simple makefile project. Rebuild everything on any update in the source tree
@@ -138,7 +140,7 @@ def build(proj_name, proj_dir):
             shutil.rmtree(build_path)
             shutil.copytree(code_path, build_path)
 
-            sh('make all -j4', cwd=build_path) #log_file
+            sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
 def clean(proj_name, proj_dir):
     out('Cleaning project \'' + proj_name + '\'')
@@ -183,7 +185,7 @@ def check_build(proj_name, proj_dir,do_check=True):
     build_path = get_build_path(proj_name)
 
     # launch make check
-    sh('make check -j2', cwd=build_path) #log_file
+    sh('make check -j' + str(num_processors), cwd=build_path) #log_file
     #sh('make distcheck', cwd=build_path) #log_file
 
 #first arg carries the project name
