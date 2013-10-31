@@ -6,8 +6,8 @@ set -e -u
 root_path=/home/exec/code/my/
 archive_path=/home/exec/downloads/apt/
 
-rel_build_pkg_path="build_official"
-rel_pkg_path="official_packaging"
+rel_build_pkg_path="build_packaging"
+rel_pkg_path="checkouts_packaging"
 rel_log_path="log"
 
 log_ext="build_log"
