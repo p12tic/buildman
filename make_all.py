@@ -234,7 +234,7 @@ def package(proj_name, proj_dir, and_source=False):
         out("ERROR: Could not find distributable package")
         sys.exit(1)
 
-    m = re.match('^(.*)-([0-9.]*)\.tar\.gz$', dist_file, re.I)
+    m = re.match('^(.*)-([^-]*)\.tar\.gz$', dist_file, re.I)
     if not m:
         out('ERROR: could not parse the filename of an archive ' + dist_file)
         sys.exit(1)
