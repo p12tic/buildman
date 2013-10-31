@@ -123,7 +123,7 @@ def build(proj_name, proj_dir):
         out('Building project \'' + proj_name + '\'')
         sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
-    else:
+    elif os.path.exists(code_path + "/Makefile"):
         #simple makefile project. Rebuild everything on any update in the source tree
 
         #get modification time of the build directory, create if it does not exist
@@ -142,6 +142,10 @@ def build(proj_name, proj_dir):
             shutil.copytree(code_path, build_path)
 
             sh('make all -j' + str(num_processors), cwd=build_path) #log_file
+    else:
+        # No makefile -- nothing to build, only package. We expect that
+        # debian/rules will have enough information
+        pass
 
 def clean(proj_name, proj_dir):
     out('Cleaning project \'' + proj_name + '\'')
