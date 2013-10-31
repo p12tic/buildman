@@ -434,7 +434,7 @@ else:
     sys.exit(1)
 
 if (action == None):
-    out("ERROR: Action not specified. Defaulting to compile+package+install")
+    out("WARN: Action not specified. Defaulting to compile+package+install")
     action = "install"
 
 # do work
