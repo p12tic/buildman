@@ -437,10 +437,18 @@ for arg in sys.argv:
 # check received arguments
 checked_projects = []
 
+ident=None
 for proj in projects_to_build:
     for (d,p) in available_projects:
+        if p == proj:
+            ident=(d, p)
+            break
         if p.find(proj) != -1:
             checked_projects.append((d, p))
+
+# if identical, ignore other
+if ident != None:
+    checked_projects = [(d, p)]
 
 if len(checked_projects) > 0:
     out("Found projects: ")
