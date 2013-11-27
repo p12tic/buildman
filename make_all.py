@@ -18,14 +18,15 @@ num_processors = 2
 
 build_path =     root_path + "build/"
 build_pkg_path = root_path + "build_packaging/"
-pkg_path =       root_path + "packaging/"
+pkg_path =       root_path + "checkouts_packaging/"
 log_path =       root_path + "log/"
 
 log_ext = "build_log"
 
 project_dirs = [
     root_path + 'checkouts/',
-    root_path + 'local/'
+    root_path + 'local/',
+    root_path + 'mods/'
     ]
 
 def out(s):
