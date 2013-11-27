@@ -75,6 +75,13 @@ def build(proj_name, proj_dir):
     log_file = get_log_path(proj_name)
     code_path = get_code_path(proj_name, proj_dir)
     build_path = get_build_path(proj_name)
+    build_pkg_path = get_build_pkg_path(proj_name)
+    pkg_path = get_pkg_path(proj_name)
+
+    out("Code path: " + code_path)
+    out("Build path: " + build_path)
+    out("Pkg build path: " + build_pkg_path)
+    out("Pkg path: " + pkg_path)
 
     if (os.path.exists(code_path + '/configure') or
         os.path.exists(code_path + '/configure.ac')):
@@ -145,7 +152,7 @@ def build(proj_name, proj_dir):
     else:
         # No makefile -- nothing to build, only package. We expect that
         # debian/rules will have enough information
-        pass
+        out('... (no Makefile)')
 
 def clean(proj_name, proj_dir):
     out('Cleaning project \'' + proj_name + '\'')
@@ -246,6 +253,7 @@ def package(proj_name, proj_dir, do_source=False):
 
     base = m.group(1)
     version = m.group(2)
+    out('Name: ' + base + '; version: ' + version)
 
     tar_file = build_pkg_path + '/' + base + '_' + version + '.orig.tar.gz'
     tar_path = build_pkg_path + '/' + base + '-' + version
@@ -271,9 +279,11 @@ def package(proj_name, proj_dir, do_source=False):
         #debian config folder is not distributed
         if os.path.isdir(pkg_path + '/debian'):
             #found one in packaging dir
+            out("Debian dir in packaging repo: " + pkg_path + '/debian')
             shutil.copytree(pkg_path + '/debian', tar_path + '/debian')
         elif os.path.isdir(code_path + '/debian'):
             #found one in code dir
+            out("Debian dir in code repo: " + code_path + '/debian')
             shutil.copytree(code_path + '/debian', tar_path + '/debian')
         else:
             #no debian config folder exists -> create one and fail
