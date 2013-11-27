@@ -194,8 +194,8 @@ def check_build(proj_name, proj_dir,do_check=True):
     #sh('make distcheck', cwd=build_path) #log_file
 
 #first arg carries the project name
-#second arg: if 'and_source', a source package is build. Other values are ignored
-def package(proj_name, proj_dir, and_source=False):
+#second arg: if 'do_source', a source package is build. Other values are ignored
+def package(proj_name, proj_dir, do_source=False):
     out('Packaging project \'' + proj_name + '\'')
 
     #compute required paths
@@ -288,18 +288,20 @@ def package(proj_name, proj_dir, and_source=False):
 
     #make debian package
     global root_path
-    r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -sa -k0x0374452d ',
-             cwd=tar_path) #log_file
-    if r != 0:
-        out("ERROR: Building project "+ proj_name + " failed")
-        sys.exit(1)
 
-    if (and_source == True):
-        r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -S -sa -k0x0374452d ',
+    if (do_source == True):
+        r = sh('debuild --no-lintian -S -sa -k0x0374452d ',
                  cwd=tar_path) #log_file
         if r != 0:
             out("ERROR: Building project "+ proj_name + " failed")
             sys.exit(1)
+    else:
+        r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -sa -k0x0374452d ',
+                cwd=tar_path) #log_file
+        if r != 0:
+            out("ERROR: Building project "+ proj_name + " failed")
+            sys.exit(1)
+
 
 def install(proj_name, proj_dir):
     #compute required paths
@@ -341,8 +343,8 @@ Actions:
 
  --package -p - builds the source tree and creates a binary package
 
- --package_source -s - builds the source tree, creates a source and
-   binary packages
+ --package_source -s - builds the source tree and creates a source
+   package
 
  --install -i - builds the source tree, creates a binary package and
    installs it both to the system and to a local repository
@@ -467,7 +469,7 @@ elif (action == 'package_source'):
     for (d,p) in checked_projects:
         build(p,d)
         check_build(p,d,do_check)
-        package(p,d,and_source=True)
+        package(p,d,do_source=True)
 
 elif (action == 'install'):
     for (d,p) in checked_projects:
