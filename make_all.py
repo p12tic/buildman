@@ -112,7 +112,7 @@ def build(proj_name, proj_dir):
         if build_mtime < c_mtime:
             shutil.rmtree(build_path)
             os.makedirs(build_path)
-            sh(code_path + '/configure', cwd=build_path) #log_file
+            sh(code_path + '/configure --prefix=/usr', cwd=build_path) #log_file
 
         #build
         out('Building project \'' + proj_name + '\'')
@@ -202,6 +202,7 @@ def reconf(proj_name, proj_dir):
 def check_build(proj_name, proj_dir,do_check=True):
     if not do_check:
         return
+
 
     out('Checking project \'' + proj_name + '\'')
 
