@@ -374,7 +374,7 @@ Actions:
  """)
     #indentation
 
-for path in build_path, build_pkg_path, pkg_path:
+for path in build_path, build_pkg_path:
     if not os.path.exists(path):
         os.makedirs(path)
 
