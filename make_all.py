@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import os.path
+import glob
 from subprocess import call
 import shutil
 import re
@@ -126,6 +127,18 @@ def build(proj_name, proj_dir):
         cmd = 'cmake \'' + code_path + '\''
         out(cmd)
         sh('cmake \"' + code_path + '\"' , cwd=build_path) #log_file
+
+        out('Building project \'' + proj_name + '\'')
+        sh('make all -j' + str(num_processors), cwd=build_path) #log_file
+
+    elif glob.glob(code_path + "/*.pro"):
+        # qmake project
+        if not os.path.isdir(build_path):
+            os.makedirs(build_path)
+
+        cmd = 'qmake \'' + code_path + '\''
+        out(cmd)
+        sh('qmake \"' + code_path + '\"' , cwd=build_path) #log_file
 
         out('Building project \'' + proj_name + '\'')
         sh('make all -j' + str(num_processors), cwd=build_path) #log_file
