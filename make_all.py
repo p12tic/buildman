@@ -196,9 +196,12 @@ def check_build(proj_name, proj_dir,do_check=True):
     log_file = get_log_path(proj_name)
     build_path = get_build_path(proj_name)
 
-    # launch make check
-    sh('make check -j' + str(num_processors), cwd=build_path) #log_file
-    #sh('make distcheck', cwd=build_path) #log_file
+    if os.path.exists(build_path + "/Makefile"):
+        # launch make check
+        sh('make check -j' + str(num_processors), cwd=build_path) #log_file
+        #sh('make distcheck', cwd=build_path) #log_file
+    else:
+        out('... (no Makefile)')
 
 #first arg carries the project name
 #second arg: if 'do_source', a source package is build. Other values are ignored
