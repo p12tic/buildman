@@ -51,11 +51,32 @@ def get_dir_mtime(path):
                 max_mtime = mtime
     return max_mtime
 
+BUILD_TYPE_NONE=0
+BUILD_TYPE_AUTOTOOLS=1
+BUILD_TYPE_CMAKE=2
+BUILD_TYPE_QMAKE=3
+BUILD_TYPE_MAKEFILE=4
+
 class Project:
 
     def __init__(self, proj_name, proj_dir):
         self.proj_name = proj_name
         self.proj_dir = proj_dir
+
+        self.build_type = self.get_build_type()
+    def get_build_type(self):
+        code_path = self.get_code_path()
+
+        if (os.path.exists(code_path + '/configure') or
+            os.path.exists(code_path + '/configure.ac')):
+            return BUILD_TYPE_AUTOTOOLS
+        if glob.glob(code_path + "/*.pro"):
+            return BUILD_TYPE_QMAKE
+        if os.path.exists(code_path + '/CMakeLists.txt'):
+            return BUILD_TYPE_CMAKE
+        if os.path.exists(code_path + "/Makefile"):
+            return BUILD_TYPE_MAKEFILE
+        return BUILD_TYPE_NONE
 
     def get_log_path(self):
         global log_path
@@ -91,8 +112,7 @@ class Project:
         out("Pkg build path: " + build_pkg_path)
         out("Pkg path: " + pkg_path)
 
-        if (os.path.exists(code_path + '/configure') or
-            os.path.exists(code_path + '/configure.ac')):
+        if self.build_type == BUILD_TYPE_AUTOTOOLS:
             #autotools project
 
             #get modification time of the build directory, create if it does not exist
@@ -125,7 +145,7 @@ class Project:
             out('Building project \'' + self.proj_name + '\'')
             sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
-        elif os.path.exists(code_path + '/CMakeLists.txt'):
+        elif self.build_type == BUILD_TYPE_CMAKE:
             # cmake project
 
             if not os.path.isdir(build_path):
@@ -138,7 +158,7 @@ class Project:
             out('Building project \'' + self.proj_name + '\'')
             sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
-        elif glob.glob(code_path + "/*.pro"):
+        elif self.build_type == BUILD_TYPE_QMAKE:
             # qmake project
             if not os.path.isdir(build_path):
                 os.makedirs(build_path)
@@ -156,7 +176,7 @@ class Project:
             out('Building project \'' + self.proj_name + '\'')
             sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
-        elif os.path.exists(code_path + "/Makefile"):
+        elif self.build_type == BUILD_TYPE_MAKEFILE:
             #simple makefile project. Rebuild everything on any update in the source tree
 
             #get modification time of the build directory, create if it does not exist
@@ -206,9 +226,9 @@ class Project:
         #compute required paths
         code_path = self.get_code_path()
 
-        if os.path.exists(code_path + '/configure.ac'):
+        if self.build_type == BUILD_TYPE_AUTOTOOLS:
             sh('autoreconf', cwd=code_path) #log_file
-        elif os.path.exists(code_path + '/CMakeLists.txt'):
+        elif self.build_type == BUILD_TYPE_CMAKE:
             sh('cmake .', cwd=code_path) #log_file
 
 
@@ -223,7 +243,7 @@ class Project:
         log_file = self.get_log_path()
         build_path = self.get_build_path()
 
-        if os.path.exists(build_path + "/Makefile"):
+        if self.build_type != BUILD_TYPE_NONE:
             # launch make check
             sh('make check -j' + str(num_processors), cwd=build_path) #log_file
             #sh('make distcheck', cwd=build_path) #log_file
