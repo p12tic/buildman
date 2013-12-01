@@ -40,25 +40,6 @@ def sh(cmd, cwd):
         sys.exit(code)
     return code
 
-def get_log_path(proj_name):
-    global log_path
-    return os.path.join(log_path, proj_name)
-
-def get_code_path(proj_name, proj_dir):
-    return proj_dir
-
-def get_build_path(proj_name):
-    global build_path
-    return os.path.join(build_path, proj_name)
-
-def get_pkg_path(proj_name):
-    global pkg_path
-    return os.path.join(pkg_path, proj_name)
-
-def get_build_pkg_path(proj_name):
-    global build_pkg_path
-    return os.path.join(build_pkg_path, proj_name)
-
 def get_dir_mtime(path):
     max_mtime = 0
     for dirname,subdirs,files in os.walk(path):
@@ -70,297 +51,320 @@ def get_dir_mtime(path):
                 max_mtime = mtime
     return max_mtime
 
-def build(proj_name, proj_dir):
-    out('Configuring project \'' + proj_name + '\'')
+class Project:
 
-    #compute required paths
-    log_file = get_log_path(proj_name)
-    code_path = get_code_path(proj_name, proj_dir)
-    build_path = get_build_path(proj_name)
-    build_pkg_path = get_build_pkg_path(proj_name)
-    pkg_path = get_pkg_path(proj_name)
+    def __init__(self, proj_name, proj_dir):
+        self.proj_name = proj_name
+        self.proj_dir = proj_dir
 
-    out("Code path: " + code_path)
-    out("Build path: " + build_path)
-    out("Pkg build path: " + build_pkg_path)
-    out("Pkg path: " + pkg_path)
+    def get_log_path(self):
+        global log_path
+        return os.path.join(log_path, self.proj_name)
 
-    if (os.path.exists(code_path + '/configure') or
-        os.path.exists(code_path + '/configure.ac')):
-        #autotools project
+    def get_code_path(self):
+        return self.proj_dir
 
-        #get modification time of the build directory, create if it does not exist
+    def get_build_path(self):
+        global build_path
+        return os.path.join(build_path, self.proj_name)
 
-        if os.path.isdir(build_path):
-            build_mtime = os.path.getmtime(build_path)
-        else:
-            os.makedirs(build_path)
-            build_mtime = 0.0
+    def get_pkg_path(self):
+        global pkg_path
+        return os.path.join(pkg_path, self.proj_name)
 
-        ac_mtime = os.path.getmtime(code_path + '/configure.ac')
-        if os.path.isfile(code_path + '/configure'):
-            c_mtime = os.path.getmtime(code_path + '/configure')
-        else:
-            c_mtime = 0.0
+    def get_build_pkg_path(self):
+        global build_pkg_path
+        return os.path.join(build_pkg_path, self.proj_name)
 
-        #rerun autoconf if needed
-        if c_mtime < ac_mtime:
-            sh('autoconf; automake', cwd=code_path)
-            c_mtime = os.path.getmtime(code_path + '/configure')
+    def build(self):
+        out('Configuring project \'' + self.proj_name + '\'')
 
-        #reconfigure if needed
+        #compute required paths
+        log_file = self.get_log_path()
+        code_path = self.get_code_path()
+        build_path = self.get_build_path()
+        build_pkg_path = self.get_build_pkg_path()
+        pkg_path = self.get_pkg_path()
 
-        if build_mtime < c_mtime:
-            shutil.rmtree(build_path)
-            os.makedirs(build_path)
-            sh(code_path + '/configure --prefix=/usr', cwd=build_path) #log_file
+        out("Code path: " + code_path)
+        out("Build path: " + build_path)
+        out("Pkg build path: " + build_pkg_path)
+        out("Pkg path: " + pkg_path)
 
-        #build
-        out('Building project \'' + proj_name + '\'')
-        sh('make all -j' + str(num_processors), cwd=build_path) #log_file
+        if (os.path.exists(code_path + '/configure') or
+            os.path.exists(code_path + '/configure.ac')):
+            #autotools project
 
-    elif os.path.exists(code_path + '/CMakeLists.txt'):
-        # cmake project
+            #get modification time of the build directory, create if it does not exist
 
-        if not os.path.isdir(build_path):
-            os.makedirs(build_path)
+            if os.path.isdir(build_path):
+                build_mtime = os.path.getmtime(build_path)
+            else:
+                os.makedirs(build_path)
+                build_mtime = 0.0
 
-        cmd = 'cmake \'' + code_path + '\''
-        out(cmd)
-        sh('cmake \"' + code_path + '\"' , cwd=build_path) #log_file
+            ac_mtime = os.path.getmtime(code_path + '/configure.ac')
+            if os.path.isfile(code_path + '/configure'):
+                c_mtime = os.path.getmtime(code_path + '/configure')
+            else:
+                c_mtime = 0.0
 
-        out('Building project \'' + proj_name + '\'')
-        sh('make all -j' + str(num_processors), cwd=build_path) #log_file
+            #rerun autoconf if needed
+            if c_mtime < ac_mtime:
+                sh('autoconf; automake', cwd=code_path)
+                c_mtime = os.path.getmtime(code_path + '/configure')
 
-    elif glob.glob(code_path + "/*.pro"):
-        # qmake project
-        if not os.path.isdir(build_path):
-            os.makedirs(build_path)
+            #reconfigure if needed
 
-        cmd = 'qmake \'' + code_path + '\''
-        out(cmd)
+            if build_mtime < c_mtime:
+                shutil.rmtree(build_path)
+                os.makedirs(build_path)
+                sh(code_path + '/configure --prefix=/usr', cwd=build_path) #log_file
 
-        # work around the issues with qmake out-of-source builds
-        # In short, only directories at the same level are supported
-        code_dir = '.' + proj_name + '_codedir'
-        sh('ln -s \"' + code_path + '\" \"../' + code_dir + '\" ', cwd=build_path)
-
-        sh('qmake \"../' + code_dir + '\"' , cwd=build_path) #log_file
-
-        out('Building project \'' + proj_name + '\'')
-        sh('make all -j' + str(num_processors), cwd=build_path) #log_file
-
-    elif os.path.exists(code_path + "/Makefile"):
-        #simple makefile project. Rebuild everything on any update in the source tree
-
-        #get modification time of the build directory, create if it does not exist
-        if os.path.isdir(build_path):
-            build_mtime = get_dir_mtime(build_path)
-        else:
-            os.makedirs(build_path)
-            build_mtime = 0
-
-        c_mtime = get_dir_mtime(code_path)
-
-        if (build_mtime < c_mtime):
-            out('Building project \'' + proj_name + '\'')
-
-            shutil.rmtree(build_path)
-            shutil.copytree(code_path, build_path)
-
+            #build
+            out('Building project \'' + self.proj_name + '\'')
             sh('make all -j' + str(num_processors), cwd=build_path) #log_file
-    else:
-        # No makefile -- nothing to build, only package. We expect that
-        # debian/rules will have enough information
-        out('... (no Makefile)')
 
-def clean(proj_name, proj_dir):
-    out('Cleaning project \'' + proj_name + '\'')
+        elif os.path.exists(code_path + '/CMakeLists.txt'):
+            # cmake project
 
-    #compute required paths
-    code_path = get_code_path(proj_name, proj_dir)
-    build_path = get_build_path(proj_name)
-    build_pkg_path = get_build_pkg_path(proj_name)
+            if not os.path.isdir(build_path):
+                os.makedirs(build_path)
 
-    if os.path.isdir(build_path):
-        shutil.rmtree(build_path)
+            cmd = 'cmake \'' + code_path + '\''
+            out(cmd)
+            sh('cmake \"' + code_path + '\"' , cwd=build_path) #log_file
 
-    if os.path.isdir(build_pkg_path):
-        files=os.listdir(build_pkg_path)
-        for f in files:
-            if (re.search('\.deb$', f) or
-                re.search('\.changes$', f) or
-                re.search('\.build$', f) or
-                re.search('\.dsc$', f)):
-                os.remove(os.path.join(build_pkg_path, f))
+            out('Building project \'' + self.proj_name + '\'')
+            sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
-def reconf(proj_name, proj_dir):
-    out('Reconfiguring project \'' + proj_name + '\'')
+        elif glob.glob(code_path + "/*.pro"):
+            # qmake project
+            if not os.path.isdir(build_path):
+                os.makedirs(build_path)
 
-    #compute required paths
-    code_path = get_code_path(proj_name, proj_dir)
+            cmd = 'qmake \'' + code_path + '\''
+            out(cmd)
 
-    if os.path.exists(code_path + '/configure.ac'):
-        sh('autoreconf', cwd=code_path) #log_file
-    elif os.path.exists(code_path + '/CMakeLists.txt'):
-        sh('cmake .', cwd=code_path) #log_file
+            # work around the issues with qmake out-of-source builds
+            # In short, only directories at the same level are supported
+            code_dir = '.' + self.proj_name + '_codedir'
+            sh('ln -fs \"' + code_path + '\" \"../' + code_dir + '\" ', cwd=build_path)
 
+            sh('qmake \"../' + code_dir + '\"' , cwd=build_path) #log_file
 
-def check_build(proj_name, proj_dir,do_check=True):
-    if not do_check:
-        return
+            out('Building project \'' + self.proj_name + '\'')
+            sh('make all -j' + str(num_processors), cwd=build_path) #log_file
 
+        elif os.path.exists(code_path + "/Makefile"):
+            #simple makefile project. Rebuild everything on any update in the source tree
 
-    out('Checking project \'' + proj_name + '\'')
+            #get modification time of the build directory, create if it does not exist
+            if os.path.isdir(build_path):
+                build_mtime = get_dir_mtime(build_path)
+            else:
+                os.makedirs(build_path)
+                build_mtime = 0
 
-    #compute required paths
-    log_file = get_log_path(proj_name)
-    build_path = get_build_path(proj_name)
+            c_mtime = get_dir_mtime(code_path)
 
-    if os.path.exists(build_path + "/Makefile"):
-        # launch make check
-        sh('make check -j' + str(num_processors), cwd=build_path) #log_file
-        #sh('make distcheck', cwd=build_path) #log_file
-    else:
-        out('... (no Makefile)')
+            if (build_mtime < c_mtime):
+                out('Building project \'' + self.proj_name + '\'')
 
-#first arg carries the project name
-#second arg: if 'do_source', a source package is build. Other values are ignored
-def package(proj_name, proj_dir, do_source=False):
-    out('Packaging project \'' + proj_name + '\'')
+                shutil.rmtree(build_path)
+                shutil.copytree(code_path, build_path)
 
-    #compute required paths
-    log_file = get_log_path(proj_name)
-    code_path = get_code_path(proj_name, proj_dir)
-    build_path = get_build_path(proj_name)
-    build_pkg_path = get_build_pkg_path(proj_name)
-    pkg_path = get_pkg_path(proj_name)
-
-    #make distributable
-    sh('make dist', cwd=build_path) #log_file
-
-    # find the resulting distributable tar file. Loosely match with the projects
-    # name, take the the tgz which matches the largest number of words in the
-    # projects name
-    tgzs = os.listdir(build_path)
-    tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') ]
-
-    dist_file = None
-    if len(tgzs) == 0:
-        pass
-    elif len(tgzs) == 1:
-        dist_file = tgzs[0]
-    else:
-        words = re.split(r'[-_ ]', proj_name)
-        max_tgz = ''
-        max_score = 0
-        for tgz in tgzs:
-            score = 0
-            for word in words:
-                if tgz.find(word) != -1:
-                    score += len(word)
-            if score > max_score:
-                max_tgz = tgz
-                max_score = score
-
-        if max_score > 0:
-            dist_file = max_tgz
-
-    if dist_file == None:
-        out("ERROR: Could not find distributable package")
-        sys.exit(1)
-
-    m = re.match('^(.*)-([^-]*)\.tar\.gz$', dist_file, re.I)
-    if not m:
-        out('ERROR: could not parse the filename of an archive ' + dist_file)
-        sys.exit(1)
-
-    base = m.group(1)
-    version = m.group(2)
-    out('Name: ' + base + '; version: ' + version)
-
-    tar_file = build_pkg_path + '/' + base + '_' + version + '.orig.tar.gz'
-    tar_path = build_pkg_path + '/' + base + '-' + version
-
-    #make the debian dir
-    if not os.path.isdir(build_pkg_path):
-        os.makedirs(build_pkg_path)
-
-    #move the distributable to the destination directory and cleanly extract it
-    shutil.move(build_path + '/' + dist_file, tar_file)
-    if os.path.isdir(tar_path):
-        shutil.rmtree(tar_path)
-
-    sh('tar -xzf ' + tar_file + ' -C ' + build_pkg_path, cwd=build_pkg_path)
-
-    #check if successful
-    if not os.path.isdir(tar_path):
-        out("ERROR: Failed to extract distributable archive to " + tar_path)
-        sys.exit(1)
-
-    #check for debian config folder, create one using dh_make if not existing
-    if not os.path.isdir(tar_path + '/debian'):
-        #debian config folder is not distributed
-        if os.path.isdir(pkg_path + '/debian'):
-            #found one in packaging dir
-            out("Debian dir in packaging repo: " + pkg_path + '/debian')
-            shutil.copytree(pkg_path + '/debian', tar_path + '/debian')
-        elif os.path.isdir(code_path + '/debian'):
-            #found one in code dir
-            out("Debian dir in code repo: " + code_path + '/debian')
-            shutil.copytree(code_path + '/debian', tar_path + '/debian')
+                sh('make all -j' + str(num_processors), cwd=build_path) #log_file
         else:
-            #no debian config folder exists -> create one and fail
-            sh('dh_make -f ' + tar_file, cwd=tar_path) #log_file
-            shutil.copytree(tar_path + '/debian', build_pkg_path + '/debian')
+            # No makefile -- nothing to build, only package. We expect that
+            # debian/rules will have enough information
+            out('... (no Makefile)')
 
-            out("ERROR: Please update the debian configs at $build_pkg_path/debian")
+    def clean(self):
+        out('Cleaning project \'' + self.proj_name + '\'')
+
+        #compute required paths
+        code_path = self.get_code_path()
+        build_path = self.get_build_path()
+        build_pkg_path = self.get_build_pkg_path()
+
+        if os.path.isdir(build_path):
+            shutil.rmtree(build_path)
+
+        if os.path.isdir(build_pkg_path):
+            files=os.listdir(build_pkg_path)
+            for f in files:
+                if (re.search('\.deb$', f) or
+                    re.search('\.changes$', f) or
+                    re.search('\.build$', f) or
+                    re.search('\.dsc$', f)):
+                    os.remove(os.path.join(build_pkg_path, f))
+
+    def reconf(self):
+        out('Reconfiguring project \'' + self.proj_name + '\'')
+
+        #compute required paths
+        code_path = self.get_code_path()
+
+        if os.path.exists(code_path + '/configure.ac'):
+            sh('autoreconf', cwd=code_path) #log_file
+        elif os.path.exists(code_path + '/CMakeLists.txt'):
+            sh('cmake .', cwd=code_path) #log_file
+
+
+    def check_build(self, do_check=True):
+        if not do_check:
+            return
+
+
+        out('Checking project \'' + self.proj_name + '\'')
+
+        #compute required paths
+        log_file = self.get_log_path()
+        build_path = self.get_build_path()
+
+        if os.path.exists(build_path + "/Makefile"):
+            # launch make check
+            sh('make check -j' + str(num_processors), cwd=build_path) #log_file
+            #sh('make distcheck', cwd=build_path) #log_file
+        else:
+            out('... (no Makefile)')
+
+    def package(self, do_source=False):
+        out('Packaging project \'' + self.proj_name + '\'')
+
+        #compute required paths
+        log_file = self.get_log_path()
+        code_path = self.get_code_path()
+        build_path = self.get_build_path()
+        build_pkg_path = self.get_build_pkg_path()
+        pkg_path = self.get_pkg_path()
+
+        #make a distributable archive
+        sh('make dist', cwd=build_path) #log_file
+
+        # find the resulting distributable tar file. Loosely match with the projects
+        # name, take the the tgz which matches the largest number of words in the
+        # projects name
+        tgzs = os.listdir(build_path)
+        tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') ]
+
+        dist_file = None
+        if len(tgzs) == 0:
+            pass
+        elif len(tgzs) == 1:
+            dist_file = tgzs[0]
+        else:
+            words = re.split(r'[-_ ]', self.proj_name)
+            max_tgz = ''
+            max_score = 0
+            for tgz in tgzs:
+                score = 0
+                for word in words:
+                    if tgz.find(word) != -1:
+                        score += len(word)
+                if score > max_score:
+                    max_tgz = tgz
+                    max_score = score
+
+            if max_score > 0:
+                dist_file = max_tgz
+
+        if dist_file == None:
+            out("ERROR: Could not find distributable package")
             sys.exit(1)
 
-    #clear the directory
-    sh('find . -iname "*.deb" -exec rm -f \'{}\' \;', cwd=build_pkg_path) #log_file
-
-    #make debian package
-    global root_path
-
-    if (do_source == True):
-        r = sh('debuild --no-lintian -S -sa -k0x0374452d ',
-                 cwd=tar_path) #log_file
-        if r != 0:
-            out("ERROR: Building project "+ proj_name + " failed")
-            sys.exit(1)
-    else:
-        r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -sa -k0x0374452d ',
-                cwd=tar_path) #log_file
-        if r != 0:
-            out("ERROR: Building project "+ proj_name + " failed")
+        m = re.match('^(.*)-([^-]*)\.tar\.gz$', dist_file, re.I)
+        if not m:
+            out('ERROR: could not parse the filename of an archive ' + dist_file)
             sys.exit(1)
 
+        base = m.group(1)
+        version = m.group(2)
+        out('Name: ' + base + '; version: ' + version)
 
-def install(proj_name, proj_dir):
-    #compute required paths
-    build_pkg_path = get_build_pkg_path(proj_name)
+        tar_file = build_pkg_path + '/' + base + '_' + version + '.orig.tar.gz'
+        tar_path = build_pkg_path + '/' + base + '-' + version
 
-    #install the package(s)
-    sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=build_pkg_path) #log_file
+        #make the debian dir
+        if not os.path.isdir(build_pkg_path):
+            os.makedirs(build_pkg_path)
 
-def debinstall(proj_name, proj_dir):
-    #compute required paths
-    build_pkg_path = get_build_pkg_path(proj_name)
-    global archive_path
+        #move the distributable to the destination directory and cleanly extract it
+        shutil.move(build_path + '/' + dist_file, tar_file)
+        if os.path.isdir(tar_path):
+            shutil.rmtree(tar_path)
 
-    #compute required paths
-    log_file = get_log_path(proj_name)
-    code_path = get_code_path(proj_name, proj_dir)
-    build_path = get_build_path(proj_name)
-    build_pkg_path = get_build_pkg_path(proj_name)
+        sh('tar -xzf ' + tar_file + ' -C ' + build_pkg_path, cwd=build_pkg_path)
 
-    #install the package(s)
-    debs = os.listdir(build_pkg_path)
-    for deb in debs:
-        if deb.endswith('.deb'):
-            shutil.copyfile(build_pkg_path + '/' + deb, archive_path + '/' + deb)
-    sh('./reload', cwd=archive_path) #log_file
+        #check if successful
+        if not os.path.isdir(tar_path):
+            out("ERROR: Failed to extract distributable archive to " + tar_path)
+            sys.exit(1)
+
+        #check for debian config folder, create one using dh_make if not existing
+        if not os.path.isdir(tar_path + '/debian'):
+            #debian config folder is not distributed
+            if os.path.isdir(pkg_path + '/debian'):
+                #found one in packaging dir
+                out("Debian dir in packaging repo: " + pkg_path + '/debian')
+                shutil.copytree(pkg_path + '/debian', tar_path + '/debian')
+            elif os.path.isdir(code_path + '/debian'):
+                #found one in code dir
+                out("Debian dir in code repo: " + code_path + '/debian')
+                shutil.copytree(code_path + '/debian', tar_path + '/debian')
+            else:
+                #no debian config folder exists -> create one and fail
+                sh('dh_make -f ' + tar_file, cwd=tar_path) #log_file
+                shutil.copytree(tar_path + '/debian', build_pkg_path + '/debian')
+
+                out("ERROR: Please update the debian configs at $build_pkg_path/debian")
+                sys.exit(1)
+
+        #clear the directory
+        sh('find . -iname "*.deb" -exec rm -f \'{}\' \;', cwd=build_pkg_path) #log_file
+
+        #make debian package
+        global root_path
+
+        if (do_source == True):
+            r = sh('debuild --no-lintian -S -sa -k0x0374452d ',
+                    cwd=tar_path) #log_file
+            if r != 0:
+                out("ERROR: Building project "+ self.proj_name + " failed")
+                sys.exit(1)
+        else:
+            r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -sa -k0x0374452d ',
+                    cwd=tar_path) #log_file
+            if r != 0:
+                out("ERROR: Building project "+ self.proj_name + " failed")
+                sys.exit(1)
+
+
+    def install(self):
+        #compute required paths
+        build_pkg_path = self.get_build_pkg_path()
+
+        #install the package(s)
+        sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=build_pkg_path) #log_file
+
+    def debinstall(self):
+        #compute required paths
+        build_pkg_path = self.get_build_pkg_path()
+        global archive_path
+
+        #compute required paths
+        log_file = self.get_log_path()
+        code_path = self.get_code_path()
+        build_path = self.get_build_path()
+        build_pkg_path = self.get_build_pkg_path()
+
+        #install the package(s)
+        debs = os.listdir(build_pkg_path)
+        for deb in debs:
+            if deb.endswith('.deb'):
+                shutil.copyfile(build_pkg_path + '/' + deb, archive_path + '/' + deb)
+        sh('./reload', cwd=archive_path) #log_file
 
 #shows the available options to the stderr
 def show_help():
@@ -489,59 +493,68 @@ if (action == None):
 # do work
 if (action == 'full_clean'):
     for (d,p) in checked_projects:
-        reconf(p,d)
-        clean(p,d)
+        pr = Project(p,d)
+        pr.reconf()
+        pr.clean()
 
 elif (action == 'clean'):
     for (d,p) in checked_projects:
-        clean(p,d)
+        pr = Project(p,d)
+        pr.clean()
 
 elif (action == 'build'):
     for (d,p) in checked_projects:
-        build(p,d)
-        check_build(p,d,do_check)
+        pr = Project(p,d)
+        pr.build()
+        pr.check_build(do_check)
 
 elif (action == 'package'):
     for (d,p) in checked_projects:
-        build(p,d)
-        check_build(p,d,do_check)
-        package(p,d)
+        pr = Project(p,d)
+        pr.build()
+        pr.check_build(do_check)
+        pr.package()
 
 elif (action == 'package_source'):
     for (d,p) in checked_projects:
-        build(p,d)
-        check_build(p,d,do_check)
-        package(p,d,do_source=True)
+        pr = Project(p,d)
+        pr.build()
+        pr.check_build(do_check)
+        pr.package(do_source=True)
 
 elif (action == 'install'):
     for (d,p) in checked_projects:
-        build(p,d)
-        check_build(p,d,do_check)
-        package(p,d)
+        pr = Project(p,d)
+        pr.build()
+        pr.check_build(do_check)
+        pr.package()
 
         out("Installing project: " + p)
-        install(p,d)
-        debinstall(p,d)
+        pr.install()
+        pr.debinstall()
 
 elif (action == 'reinstall'):
     for (d,p) in checked_projects:
+        pr = Project(p,d)
         out("Installing project: " + p)
-        install(p,d)
-        debinstall(p,d)
+        pr.install()
+        pr.debinstall()
 
 elif (action == 'debinstall'):
     for (d,p) in checked_projects:
-        build(p,d)
-        check_build(p,d,do_check)
-        package(p,d)
+        pr = Project(p,d)
+        pr.build()
+        pr.check_build(do_check)
+        pr.package()
 
         out("Installing project: " + p)
-        debinstall(p,d)
+        pr.debinstall()
 
 elif (action == 'debreinstall'):
     for (d,p) in checked_projects:
         out("Installing project: " + p)
-        debinstall(p,d)
+        pr = Project(p,d)
+        pr.debinstall()
 
 else:
     out("ERROR: Wrong action!" + action)
