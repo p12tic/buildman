@@ -139,11 +139,11 @@ class Project:
             if build_mtime < c_mtime:
                 shutil.rmtree(build_path)
                 os.makedirs(build_path)
-                sh(code_path + '/configure --prefix=/usr', cwd=build_path) #log_file
+                sh(code_path + '/configure --prefix=/usr', cwd=build_path)
 
             #build
             out('Building project \'' + self.proj_name + '\'')
-            sh('make all -j' + str(num_processors), cwd=build_path) #log_file
+            sh('make all -j' + str(num_processors), cwd=build_path)
 
         elif self.build_type == BUILD_TYPE_CMAKE:
             # cmake project
@@ -153,10 +153,10 @@ class Project:
 
             cmd = 'cmake \'' + code_path + '\''
             out(cmd)
-            sh('cmake \"' + code_path + '\"' , cwd=build_path) #log_file
+            sh('cmake \"' + code_path + '\"' , cwd=build_path)
 
             out('Building project \'' + self.proj_name + '\'')
-            sh('make all -j' + str(num_processors), cwd=build_path) #log_file
+            sh('make all -j' + str(num_processors), cwd=build_path)
 
         elif self.build_type == BUILD_TYPE_QMAKE:
             # qmake project
@@ -171,10 +171,10 @@ class Project:
             code_dir = '.' + self.proj_name + '_codedir'
             sh('ln -fs \"' + code_path + '\" \"../' + code_dir + '\" ', cwd=build_path)
 
-            sh('qmake \"../' + code_dir + '\"' , cwd=build_path) #log_file
+            sh('qmake \"../' + code_dir + '\"' , cwd=build_path)
 
             out('Building project \'' + self.proj_name + '\'')
-            sh('make all -j' + str(num_processors), cwd=build_path) #log_file
+            sh('make all -j' + str(num_processors), cwd=build_path)
 
         elif self.build_type == BUILD_TYPE_MAKEFILE:
             #simple makefile project. Rebuild everything on any update in the source tree
@@ -194,7 +194,7 @@ class Project:
                 shutil.rmtree(build_path)
                 shutil.copytree(code_path, build_path)
 
-                sh('make all -j' + str(num_processors), cwd=build_path) #log_file
+                sh('make all -j' + str(num_processors), cwd=build_path)
         else:
             # No makefile -- nothing to build, only package. We expect that
             # debian/rules will have enough information
@@ -227,10 +227,9 @@ class Project:
         code_path = self.get_code_path()
 
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
-            sh('autoreconf', cwd=code_path) #log_file
+            sh('autoreconf', cwd=code_path)
         elif self.build_type == BUILD_TYPE_CMAKE:
-            sh('cmake .', cwd=code_path) #log_file
-
+            sh('cmake .', cwd=code_path)
 
     def check_build(self, do_check=True):
         if not do_check:
@@ -245,8 +244,8 @@ class Project:
 
         if self.build_type != BUILD_TYPE_NONE:
             # launch make check
-            sh('make check -j' + str(num_processors), cwd=build_path) #log_file
-            #sh('make distcheck', cwd=build_path) #log_file
+            sh('make check -j' + str(num_processors), cwd=build_path)
+            #sh('make distcheck', cwd=build_path)
         else:
             out('... (no Makefile)')
 
@@ -261,7 +260,7 @@ class Project:
         pkg_path = self.get_pkg_path()
 
         #make a distributable archive
-        sh('make dist', cwd=build_path) #log_file
+        sh('make dist', cwd=build_path)
 
         # find the resulting distributable tar file. Loosely match with the projects
         # name, take the the tgz which matches the largest number of words in the
@@ -335,27 +334,27 @@ class Project:
                 shutil.copytree(code_path + '/debian', tar_path + '/debian')
             else:
                 #no debian config folder exists -> create one and fail
-                sh('dh_make -f ' + tar_file, cwd=tar_path) #log_file
+                sh('dh_make -f ' + tar_file, cwd=tar_path)
                 shutil.copytree(tar_path + '/debian', build_pkg_path + '/debian')
 
                 out("ERROR: Please update the debian configs at $build_pkg_path/debian")
                 sys.exit(1)
 
         #clear the directory
-        sh('find . -iname "*.deb" -exec rm -f \'{}\' \;', cwd=build_pkg_path) #log_file
+        sh('find . -iname "*.deb" -exec rm -f \'{}\' \;', cwd=build_pkg_path)
 
         #make debian package
         global root_path
 
         if (do_source == True):
             r = sh('debuild --no-lintian -S -sa -k0x0374452d ',
-                    cwd=tar_path) #log_file
+                    cwd=tar_path)
             if r != 0:
                 out("ERROR: Building project "+ self.proj_name + " failed")
                 sys.exit(1)
         else:
             r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + build_path+'" -sa -k0x0374452d ',
-                    cwd=tar_path) #log_file
+                    cwd=tar_path)
             if r != 0:
                 out("ERROR: Building project "+ self.proj_name + " failed")
                 sys.exit(1)
@@ -366,7 +365,7 @@ class Project:
         build_pkg_path = self.get_build_pkg_path()
 
         #install the package(s)
-        sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=build_pkg_path) #log_file
+        sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=build_pkg_path)
 
     def debinstall(self):
         #compute required paths
@@ -384,7 +383,7 @@ class Project:
         for deb in debs:
             if deb.endswith('.deb'):
                 shutil.copyfile(build_pkg_path + '/' + deb, archive_path + '/' + deb)
-        sh('./reload', cwd=archive_path) #log_file
+        sh('./reload', cwd=archive_path)
 
 #shows the available options to the stderr
 def show_help():
