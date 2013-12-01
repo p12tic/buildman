@@ -139,7 +139,13 @@ def build(proj_name, proj_dir):
 
         cmd = 'qmake \'' + code_path + '\''
         out(cmd)
-        sh('qmake \"' + code_path + '\"' , cwd=build_path) #log_file
+
+        # work around the issues with qmake out-of-source builds
+        # In short, only directories at the same level are supported
+        code_dir = '.' + proj_name + '_codedir'
+        sh('ln -s \"' + code_path + '\" \"../' + code_dir + '\" ', cwd=build_path)
+
+        sh('qmake \"../' + code_dir + '\"' , cwd=build_path) #log_file
 
         out('Building project \'' + proj_name + '\'')
         sh('make all -j' + str(num_processors), cwd=build_path) #log_file
