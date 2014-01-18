@@ -243,61 +243,113 @@ class Project:
         else:
             out('... (no Makefile)')
 
+    def find_debian_folder(self):
+        if os.path.isdir(self.pkg_path + '/debian'):
+            return self.pkg_path + '/debian'
+        if os.path.isdir(self.code_path + '/debian'):
+            return self.code_path + '/debian'
+        out('ERROR: debian folder could not be found')
+        sys.exit(1)
+
+    def extract_changelog_version(self):
+        deb_folder = self.find_debian_folder()
+        ch_fn = deb_folder + '/changelog'
+        if not os.path.exists(ch_fn):
+            out('ERROR: could not extract debian changelog')
+            sys.exit(1)
+        for line in open(ch_fn).readlines():
+            if line:
+                m = re.match(r'^\s*([\w_-]+)\s*\(([\w_.:+~]+)-([\w_.:]+)', line)
+                if not m:
+                    out('ERROR: could not match changelog line: \"' + line + '\"')
+                    sys.exit(1)
+                name = m.group(1)
+                ver = m.group(2)
+                deb_ver = m.group(3)
+
+                # strip epoch
+                if ':' in ver:
+                    epoch,sep,ver = ver.rpartition(':')
+
+                return (name, ver, deb_ver)
+        out('ERROR: could not match any changelog line')
+        sys.exit(1)
+
     def package(self, do_source=False):
         out('Packaging project \'' + self.proj_name + '\'')
 
         #make a distributable archive
-        sh('make dist', cwd=self.build_path)
+        if self.build_type == BUILD_TYPE_AUTOTOOLS:
+            out('Using make dist packager')
+            sh('make dist', cwd=self.build_path)
 
-        # find the resulting distributable tar file. Loosely match with the projects
-        # name, take the the tgz which matches the largest number of words in the
-        # projects name
-        tgzs = os.listdir(self.build_path)
-        tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') ]
+            # find the resulting distributable tar file. Loosely match with the
+            # projects name, take the the tgz which matches the largest number
+            # of words in the projects name
+            tgzs = os.listdir(self.build_path)
+            tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') ]
 
-        dist_file = None
-        if len(tgzs) == 0:
-            pass
-        elif len(tgzs) == 1:
-            dist_file = tgzs[0]
+            dist_file = None
+            if len(tgzs) == 0:
+                pass
+            elif len(tgzs) == 1:
+                dist_file = tgzs[0]
+            else:
+                words = re.split(r'[-_ ]', self.proj_name)
+                max_tgz = ''
+                max_score = 0
+                for tgz in tgzs:
+                    score = 0
+                    for word in words:
+                        if tgz.find(word) != -1:
+                            score += len(word)
+                    if score > max_score:
+                        max_tgz = tgz
+                        max_score = score
+
+                if max_score > 0:
+                    dist_file = max_tgz
+
+            if dist_file == None:
+                out("ERROR: Could not find distributable package")
+                sys.exit(1)
+
+            m = re.match('^(.*)-([^-]*)\.tar\.gz$', dist_file, re.I)
+            if not m:
+                out('ERROR: could not parse the filename of an archive ' + dist_file)
+                sys.exit(1)
+
+            base = m.group(1)
+            version = m.group(2)
+            tar_base = base + '-' + version
+            dist_file = os.path.join(self.build_path, dist_file)
         else:
-            words = re.split(r'[-_ ]', self.proj_name)
-            max_tgz = ''
-            max_score = 0
-            for tgz in tgzs:
-                score = 0
-                for word in words:
-                    if tgz.find(word) != -1:
-                        score += len(word)
-                if score > max_score:
-                    max_tgz = tgz
-                    max_score = score
+            out('Using git packager')
+            base,version,deb_version = self.extract_changelog_version()
+            tar_base = base + '-' + version
+            dist_file = tar_base + '.tar.gz'
+            if self.vcs_type == VCS_TYPE_GIT:
+                sh('git archive --worktree-attributes --prefix=\"' + tar_base
+                   + '/' + '\" HEAD --format=tar.gz > \"' + dist_file + '\"',
+                   cwd=self.code_path)
+            else:
+                out('ERROR: VCS not supported')
+                sys.exit(1)
 
-            if max_score > 0:
-                dist_file = max_tgz
+            dist_file = os.path.join(self.code_path, dist_file)
 
-        if dist_file == None:
-            out("ERROR: Could not find distributable package")
-            sys.exit(1)
-
-        m = re.match('^(.*)-([^-]*)\.tar\.gz$', dist_file, re.I)
-        if not m:
-            out('ERROR: could not parse the filename of an archive ' + dist_file)
-            sys.exit(1)
-
-        base = m.group(1)
-        version = m.group(2)
+        out('File: ' + dist_file)
         out('Name: ' + base + '; version: ' + version)
 
         tar_file = self.build_pkg_path + '/' + base + '_' + version + '.orig.tar.gz'
-        tar_path = self.build_pkg_path + '/' + base + '-' + version
+        tar_path = self.build_pkg_path + '/' + tar_base
 
         #make the debian dir
         if not os.path.isdir(self.build_pkg_path):
             os.makedirs(self.build_pkg_path)
 
         #move the distributable to the destination directory and cleanly extract it
-        shutil.move(self.build_path + '/' + dist_file, tar_file)
+        shutil.move(dist_file, tar_file)
         if os.path.isdir(tar_path):
             shutil.rmtree(tar_path)
 
