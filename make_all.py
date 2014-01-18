@@ -12,7 +12,7 @@ import sys
 root_path = os.environ['HOME'] + '/code/my/'
 archive_path = os.environ['HOME'] + '/downloads/apt/'
 
-copy_build_files_path = root_path + '/../my/copy_build_files.sh'
+copy_build_files_path = root_path + '/../my/copy_build_files.py'
 
 num_processors = 2
 
