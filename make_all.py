@@ -57,6 +57,11 @@ BUILD_TYPE_CMAKE=2
 BUILD_TYPE_QMAKE=3
 BUILD_TYPE_MAKEFILE=4
 
+def add_configure_args(proj_name):
+    if re.search(r'wnckmm', proj_name):
+        return '--enable-maintainer-mode'
+    return '--prefix=/usr'
+
 class Project:
 
     def __init__(self, proj_name, proj_dir):
@@ -121,7 +126,8 @@ class Project:
             if build_mtime < c_mtime:
                 shutil.rmtree(self.build_path)
                 os.makedirs(self.build_path)
-                sh(self.code_path + '/configure --prefix=/usr', cwd=self.build_path)
+                sh(self.code_path + '/configure ' + add_configure_args(self.proj_name),
+                   cwd=self.build_path)
 
             #build
             out('Building project \'' + self.proj_name + '\'')
