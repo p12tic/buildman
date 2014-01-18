@@ -219,7 +219,16 @@ class Project:
 
         if self.build_type != BUILD_TYPE_NONE:
             # launch make check
-            sh('make check -j' + str(num_processors), cwd=self.build_path)
+            mkpath = os.path.join(self.build_path, 'Makefile')
+            if os.path.exists(mkpath):
+                mk = open(mkpath).read()
+                if re.search(r'\bcheck:', mk):
+                    sh('make check -j' + str(num_processors), cwd=self.build_path)
+                else:
+                    out('... (no check rule)')
+            else:
+                out('... (no Makefile)')
+
             #sh('make distcheck', cwd=self.build_path)
         else:
             out('... (no Makefile)')
