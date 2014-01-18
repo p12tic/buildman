@@ -57,6 +57,9 @@ BUILD_TYPE_CMAKE=2
 BUILD_TYPE_QMAKE=3
 BUILD_TYPE_MAKEFILE=4
 
+VCS_TYPE_NONE=0
+VCS_TYPE_GIT=1
+
 def add_configure_args(proj_name):
     if re.search(r'wnckmm', proj_name):
         return '--enable-maintainer-mode'
@@ -77,6 +80,7 @@ class Project:
         self.build_pkg_path = os.path.join(build_pkg_path, self.proj_name)
 
         self.build_type = self.get_build_type()
+        self.vcs_type = self.get_vcs_type()
 
     def get_build_type(self):
 
@@ -90,6 +94,12 @@ class Project:
         if os.path.exists(self.code_path + "/Makefile"):
             return BUILD_TYPE_MAKEFILE
         return BUILD_TYPE_NONE
+
+    def get_vcs_type(self):
+
+        if os.path.isdir(self.code_path + '/.git'):
+            return VCS_TYPE_GIT
+        return VCS_TYPE_NONE
 
     def build(self):
         out('Configuring project \'' + self.proj_name + '\'')
