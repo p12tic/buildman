@@ -23,6 +23,10 @@ log_path =       root_path + "log/"
 
 log_ext = "build_log"
 
+# the ID of the key that debian sources and binaries should be signed with
+# or None if signing is not wanted
+debian_sign_key = '0x0374452d'
+
 project_dirs = [
     root_path + 'checkouts/',
     root_path + 'local/',
@@ -384,15 +388,21 @@ class Project:
 
         #make debian package
         global root_path
+        global debian_sign_key
+
+        if (debian_sign_key == None):
+            key_arg = ' -us -uc'
+        else:
+            key_arg = ' -k' + debian_sign_key
 
         if (do_source == True):
-            r = sh('debuild --no-lintian -S -sa -k0x0374452d ',
+            r = sh('debuild --no-lintian -S -sa ' + key_arg,
                     cwd=tar_path)
             if r != 0:
                 out("ERROR: Building project "+ self.proj_name + " failed")
                 sys.exit(1)
         else:
-            r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + self.build_path+'" -sa -k0x0374452d ',
+            r = sh('debuild --no-lintian --build-hook="' + copy_build_files_path + ' ' + self.build_path+'" -sa ' + key_arg,
                     cwd=tar_path)
             if r != 0:
                 out("ERROR: Building project "+ self.proj_name + " failed")
