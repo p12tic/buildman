@@ -395,10 +395,22 @@ class Project:
         dist_file = os.path.join(self.code_path, dist_file)
         return (base, version, dist_file)
 
+    # Checks the project makefile for dist target
+    def does_makefile_contain_dist_target(self):
+        f = open(self.code_path + "/Makefile")
+        for l in f:
+            if l.startswith("dist:"):
+                return True
+        return False
+
     def make_distributable(self):
 
         #make a distributable archive
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
+            return self.make_distributable_make_dist()
+
+        elif (self.build_type == BUILD_TYPE_MAKEFILE and
+              self.does_makefile_contain_dist_target()):
             return self.make_distributable_make_dist()
 
         elif self.vcs_type == VCS_TYPE_GIT:
