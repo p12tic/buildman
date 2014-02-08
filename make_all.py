@@ -34,6 +34,7 @@ num_processors = 2
 
 build_path =     root_path + "build/"
 build_pkg_path = root_path + "build_packaging/"
+build_deb_pkg_path = root_path + "build_debian/"
 pkg_path =       root_path + "checkouts_packaging/"
 log_path =       root_path + "log/"
 
@@ -47,6 +48,10 @@ project_dirs = [
     root_path + 'checkouts/',
     root_path + 'local/',
     root_path + 'mods/'
+    ]
+
+deb_project_dirs = [
+    root_path + 'checkouts_debian/'
     ]
 
 def out(s):
@@ -446,6 +451,35 @@ class Project:
                 out("ERROR: Building project "+ self.proj_name + " failed")
                 sys.exit(1)
 
+    def package_pristine(self, do_source=False):
+        deb_dir = os.path.join(self.code_path, 'debian')
+
+        # check is deb_dir exists
+        if not os.path.isdir(deb_dir):
+            out("ERROR: No debian directory for project " + self.proj_name)
+            sys.exit(1)
+
+        (name, version, deb_version) = self.extract_changelog_version(deb_dir)
+
+        self.build_pkgver_path = self.build_pkg_path + '/' + version
+        if do_source:
+            self.build_pkgver_path += '_source'
+
+        # create a clean build dir
+        if os.path.isdir(self.build_pkgver_path):
+            shutil.rmtree(self.build_pkgver_path)
+        os.makedirs(self.build_pkgver_path)
+
+        key_arg = self.get_key_arg()
+
+        if do_source:
+            sh('git-buildpackage --git-pristine-tar --git-export-dir="' +
+               self.build_pkgver_path + '" -S -sa ' + key_arg, cwd=self.code_path)
+        else:
+            sh('git-buildpackage --git-pristine-tar --git-export-dir="' +
+               self.build_pkgver_path + '" -sa ' + key_arg, cwd=self.code_path)
+
+
     def get_latest_pkgver(self):
         versions = []
         for d in os.listdir(self.build_pkg_path):
@@ -480,13 +514,16 @@ def show_help():
     sys.stderr.write("""
 Usage:
 
-make_all.sh [action] [projects ...]
+make_all.sh [options] [projects ...]
 
-Actions:
+Options:
 
  --build -b - builds the source tree
 
  --clean -n - cleans the build tree
+
+ --full_clean -f - cleans the build tree and reconfigures the source
+   tree (if possible)
 
  --package -p - builds the source tree and creates a binary package
 
@@ -505,8 +542,8 @@ Actions:
  --debreinstall -D - reintalls most recently built binary packages to
    a local repository
 
- --pristine - Package or a pristine project. Must not be used along
-   with --build or --clean flags.
+ --pristine - Package or install a pristine project. Must not be used
+   along the --build, --clean or --full_clean flags.
 
  --nocheck -n - does not check the package after building
 
@@ -576,12 +613,22 @@ for arg in sys.argv:
         action = ACTION_DEBREINSTALL
     elif (arg=='-n' or arg=='--nocheck'):
         do_check = False
+    elif arg=='--pristine':
+        pristine = True
     elif (arg=='--help'):
         show_help()
         sys.exit(1)
     else:
         if not arg.startswith('-'):
             projects_to_build.append(arg)
+
+if pristine:
+    if action in [ ACTION_CLEAN, ACTION_FULL_CLEAN, ACTION_BUILD]:
+        out("ERROR: --pristine must not be used along with --clean, "
+            "--full_clean and --build")
+        sys.exit(1)
+    project_dirs = deb_project_dirs
+    build_pkg_path = build_deb_pkg_path
 
 # check received projects
 checked_projects = []
@@ -637,23 +684,33 @@ elif (action == ACTION_BUILD):
 elif (action == ACTION_PACKAGE):
     for (d,p) in checked_projects:
         pr = Project(p,d)
-        pr.build()
-        pr.check_build(do_check)
-        pr.package()
+        if pristine:
+            pr.package_pristine()
+        else:
+            pr.build()
+            pr.check_build(do_check)
+            pr.package()
 
 elif (action == ACTION_PACKAGE_SOURCE):
     for (d,p) in checked_projects:
         pr = Project(p,d)
-        pr.build()
-        pr.check_build(do_check)
-        pr.package(do_source=True)
+        if pristine:
+            pr.package_pristine(do_source=True)
+        else:
+            pr.build()
+            pr.check_build(do_check)
+            pr.package(do_source=True)
 
 elif (action == ACTION_INSTALL):
     for (d,p) in checked_projects:
         pr = Project(p,d)
-        pr.build()
-        pr.check_build(do_check)
-        pr.package()
+
+        if pristine:
+            pr.package_pristine()
+        else:
+            pr.build()
+            pr.check_build(do_check)
+            pr.package()
 
         out("Installing project: " + p)
         pr.install()
@@ -669,9 +726,13 @@ elif (action == ACTION_REINSTALL):
 elif (action == ACTION_DEBINSTALL):
     for (d,p) in checked_projects:
         pr = Project(p,d)
-        pr.build()
-        pr.check_build(do_check)
-        pr.package()
+
+        if pristine:
+            pr.package_pristine()
+        else:
+            pr.build()
+            pr.check_build(do_check)
+            pr.package()
 
         out("Installing project: " + p)
         pr.debinstall()
