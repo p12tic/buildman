@@ -524,26 +524,36 @@ if (len(sys.argv) <= 1):
 action=None
 do_check = True
 
+ACTION_CLEAN=1
+ACTION_FULL_CLEAN=2
+ACTION_BUILD=3
+ACTION_PACKAGE=4
+ACTION_PACKAGE_SOURCE=5
+ACTION_INSTALL=6
+ACTION_REINSTALL=7
+ACTION_DEBINSTALL=8
+ACTION_DEBREINSTALL=9
+
 sys.argv.pop(0)
 for arg in sys.argv:
     if (arg=='-c' or arg=='--clean'):
-        action='clean'
+        action = ACTION_CLEAN
     elif (arg=='-f' or arg=='--full_clean'):
-        action='full_clean'
+        action = ACTION_FULL_CLEAN
     elif (arg=='-b' or arg=='--build'):
-        action="build"
+        action = ACTION_BUILD
     elif (arg=='-p' or arg=='--package'):
-        action="package"
+        action = ACTION_PACKAGE
     elif (arg=='-s' or arg=='--package_source'):
-        action="package_source"
+        action = ACTION_PACKAGE_SOURCE
     elif (arg=='-i' or arg=='--install'):
-        action="install"
+        action = ACTION_INSTALL
     elif (arg=='-I' or arg=='--reinstall'):
-        action="reinstall"
+        action = ACTION_REINSTALL
     elif (arg=='-d' or arg=='--debinstall'):
-        action="debinstall"
+        action = ACTION_DEBINSTALL
     elif (arg=='-D' or arg=='--debreinstall'):
-        action="debreinstall"
+        action = ACTION_DEBREINSTALL
     elif (arg=='-n' or arg=='--nocheck'):
         do_check = False
     elif (arg=='--help'):
@@ -579,41 +589,41 @@ else:
 
 if (action == None):
     out("WARN: Action not specified. Defaulting to compile+package+install")
-    action = "install"
+    action = ACTION_INSTALL
 
 # do work
-if (action == 'full_clean'):
+if (action == ACTION_FULL_CLEAN):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         pr.reconf()
         pr.clean()
 
-elif (action == 'clean'):
+elif (action == ACTION_CLEAN):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         pr.clean()
 
-elif (action == 'build'):
+elif (action == ACTION_BUILD):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         pr.build()
         pr.check_build(do_check)
 
-elif (action == 'package'):
+elif (action == ACTION_PACKAGE):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         pr.build()
         pr.check_build(do_check)
         pr.package()
 
-elif (action == 'package_source'):
+elif (action == ACTION_PACKAGE_SOURCE):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         pr.build()
         pr.check_build(do_check)
         pr.package(do_source=True)
 
-elif (action == 'install'):
+elif (action == ACTION_INSTALL):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         pr.build()
@@ -624,14 +634,14 @@ elif (action == 'install'):
         pr.install()
         pr.debinstall()
 
-elif (action == 'reinstall'):
+elif (action == ACTION_REINSTALL):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         out("Installing project: " + p)
         pr.install()
         pr.debinstall()
 
-elif (action == 'debinstall'):
+elif (action == ACTION_DEBINSTALL):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         pr.build()
@@ -641,7 +651,7 @@ elif (action == 'debinstall'):
         out("Installing project: " + p)
         pr.debinstall()
 
-elif (action == 'debreinstall'):
+elif (action == ACTION_DEBREINSTALL):
     for (d,p) in checked_projects:
         out("Installing project: " + p)
         pr = Project(p,d)
