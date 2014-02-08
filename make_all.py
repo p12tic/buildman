@@ -323,6 +323,38 @@ class Project:
         else:
             out("WARN: Debian dir is distributed with the source package")
 
+    # Finds the distributable tar.gz archive created by the make dist rule.
+    # All tar.gz files within the build path are loosely matched with the
+    # project name. The file which matches the largest number of words in the
+    # projects name is selected.
+    #
+    # Returns None on failure
+    def find_dist_tgz(self):
+        tgzs = os.listdir(self.build_path)
+        tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') ]
+
+        dist_file = None
+        if len(tgzs) == 0:
+            pass
+        elif len(tgzs) == 1:
+            dist_file = tgzs[0]
+        else:
+            words = re.split(r'[-_ ]', self.proj_name)
+            max_tgz = ''
+            max_score = 0
+            for tgz in tgzs:
+                score = 0
+                for word in words:
+                    if tgz.find(word) != -1:
+                        score += len(word)
+                if score > max_score:
+                    max_tgz = tgz
+                    max_score = score
+
+            if max_score > 0:
+                dist_file = max_tgz
+        return dist_file
+
     ''' Creates a distributable by using make dist for autotools projects or
         exporting the current git work tree
         Returns a tuple containing the following data:
@@ -336,32 +368,7 @@ class Project:
             out('Using make dist packager')
             sh('make dist', cwd=self.build_path)
 
-            # find the resulting distributable tar file. Loosely match with the
-            # projects name, take the the tgz which matches the largest number
-            # of words in the projects name
-            tgzs = os.listdir(self.build_path)
-            tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') ]
-
-            dist_file = None
-            if len(tgzs) == 0:
-                pass
-            elif len(tgzs) == 1:
-                dist_file = tgzs[0]
-            else:
-                words = re.split(r'[-_ ]', self.proj_name)
-                max_tgz = ''
-                max_score = 0
-                for tgz in tgzs:
-                    score = 0
-                    for word in words:
-                        if tgz.find(word) != -1:
-                            score += len(word)
-                    if score > max_score:
-                        max_tgz = tgz
-                        max_score = score
-
-                if max_score > 0:
-                    dist_file = max_tgz
+            dist_file = self.find_dist_tgz()
 
             if dist_file == None:
                 out("ERROR: Could not find distributable package")
