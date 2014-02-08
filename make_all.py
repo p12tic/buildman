@@ -318,9 +318,14 @@ class Project:
         else:
             out("WARN: Debian dir is distributed with the source package")
 
-    def package(self, do_source=False):
-        out('Packaging project \'' + self.proj_name + '\'')
-
+    ''' Creates a distributable by using make dist for autotools projects or
+        exporting the current git work tree
+        Returns a tuple containing the following data:
+            base - the name of the project
+            version - the version of the project
+            dist_file - the distributable tarball
+    '''
+    def make_distributable(self):
         #make a distributable archive
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
             out('Using make dist packager')
@@ -364,7 +369,6 @@ class Project:
 
             base = m.group(1)
             version = m.group(2)
-            tar_base = base + '-' + version
             dist_file = os.path.join(self.build_path, dist_file)
         else:
             out('Using git packager')
@@ -380,6 +384,13 @@ class Project:
                 sys.exit(1)
 
             dist_file = os.path.join(self.code_path, dist_file)
+        return (base, version, dist_file)
+
+    def package(self, do_source=False):
+        out('Packaging project \'' + self.proj_name + '\'')
+
+        (base,version,dist_file) = self.make_distributable()
+        tar_base = base + '-' + version
 
         out('File: ' + dist_file)
         out('Name: ' + base + '; version: ' + version)
