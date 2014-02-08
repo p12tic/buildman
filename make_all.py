@@ -398,6 +398,8 @@ class Project:
 
                 out("ERROR: Please update the debian configs at $build_pkg_path/debian")
                 sys.exit(1)
+        else:
+            out("WARN: Debian dir distributed with the source package")
 
         #clear the directory
         sh('find . -iname "*.deb" -exec rm -f \'{}\' \;', cwd=self.build_pkg_path)
