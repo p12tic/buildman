@@ -98,6 +98,7 @@ class Project:
         self.build_path = os.path.join(build_path, self.proj_name)
         self.pkg_path = os.path.join(pkg_path, self.proj_name)
         self.build_pkg_path = os.path.join(build_pkg_path, self.proj_name)
+        self.build_pkgver_path = None
 
         self.build_type = self.get_build_type()
         self.vcs_type = self.get_vcs_type()
@@ -395,19 +396,18 @@ class Project:
         out('File: ' + dist_file)
         out('Name: ' + base + '; version: ' + version)
 
-        tar_file = self.build_pkg_path + '/' + base + '_' + version + '.orig.tar.gz'
-        tar_path = self.build_pkg_path + '/' + tar_base
+        self.build_pkgver_path = self.build_pkg_path + '/' + version
+        tar_file = self.build_pkgver_path + '/' + base + '_' + version + '.orig.tar.gz'
+        tar_path = self.build_pkgver_path + '/' + tar_base
 
-        #make the debian dir
-        if not os.path.isdir(self.build_pkg_path):
-            os.makedirs(self.build_pkg_path)
+        # create a clean build dir
+        if os.path.isdir(self.build_pkgver_path):
+            shutil.rmtree(self.build_pkgver_path)
+        os.makedirs(self.build_pkgver_path)
 
         #move the distributable to the destination directory and cleanly extract it
         shutil.move(dist_file, tar_file)
-        if os.path.isdir(tar_path):
-            shutil.rmtree(tar_path)
-
-        sh('tar -xzf ' + tar_file + ' -C ' + self.build_pkg_path, cwd=self.build_pkg_path)
+        sh('tar -xzf ' + tar_file + ' -C ' + self.build_pkgver_path, cwd=self.build_pkgver_path)
 
         #check if successful
         if not os.path.isdir(tar_path):
@@ -417,10 +417,11 @@ class Project:
         # import debian config folder
         self.import_debian_dir(tar_file, tar_path)
 
-        #clear the directory
-        sh('find . -iname "*.deb" -exec rm -f \'{}\' \;', cwd=self.build_pkg_path)
-
         #make debian package
+        self.debuild(tar_path, do_source)
+
+    # Runs debuild in the tar_path directory
+    def debuild(self, tar_path, do_source):
         global root_path
         global debian_sign_key
 
@@ -442,19 +443,33 @@ class Project:
                 out("ERROR: Building project "+ self.proj_name + " failed")
                 sys.exit(1)
 
+    def get_latest_pkgver(self):
+        versions = []
+        for d in os.listdir(self.build_pkg_path):
+            d = os.path.join(self.build_pkg_path, d)
+            if os.path.isdir(d):
+                versions.append(d)
+
+        return max(versions, key=os.path.getmtime)
 
     def install(self):
         #install the package(s)
-        sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=self.build_pkg_path)
+        if self.build_pkgver_path == None:
+            self.build_pkgver_path = self.get_latest_pkgver()
+
+        sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=self.build_pkgver_path)
 
     def debinstall(self):
         global archive_path
 
+        if self.build_pkgver_path == None:
+            self.build_pkgver_path = self.get_latest_pkgver()
+
         #install the package(s)
-        debs = os.listdir(self.build_pkg_path)
+        debs = os.listdir(self.build_pkgver_path)
         for deb in debs:
             if deb.endswith('.deb'):
-                shutil.copyfile(self.build_pkg_path + '/' + deb, archive_path + '/' + deb)
+                shutil.copyfile(self.build_pkgver_path + '/' + deb, archive_path + '/' + deb)
         sh('./reload', cwd=archive_path)
 
 #shows the available options to the stderr
@@ -478,14 +493,14 @@ Actions:
  --install -i - builds the source tree, creates a binary package and
    installs it both to the system and to a local repository
 
- --reinstall -I - reintalls already built binary packages both to the
-   system and to a local repository
+ --reinstall -I - reintalls most recently built binary packages both
+   to the system and to a local repository.
 
  --debinstall -d - builds the source tree, creates a binary package
    and installs it only to a local repository
 
- --debreinstall -D - reintalls already built binary packages to a
-   local repository
+ --debreinstall -D - reintalls most recently built binary packages to
+   a local repository
 
  --nocheck -n - does not check the package after building
 
