@@ -295,6 +295,29 @@ class Project:
         out('ERROR: could not match any changelog line')
         sys.exit(1)
 
+    # imports debian directory for a project extracted to ext_tar_path. Exits
+    # on failure
+    def import_debian_dir(self, tar_file, ext_tar_path):
+        if not os.path.isdir(ext_tar_path + '/debian'):
+            #debian config folder is not distributed
+            if os.path.isdir(self.pkg_path + '/debian'):
+                #found one in packaging dir
+                out("Debian dir in packaging repo: " + self.pkg_path + '/debian')
+                shutil.copytree(self.pkg_path + '/debian', ext_tar_path + '/debian')
+            elif os.path.isdir(self.code_path + '/debian'):
+                #found one in code dir
+                out("Debian dir in code repo: " + self.code_path + '/debian')
+                shutil.copytree(self.code_path + '/debian', ext_tar_path + '/debian')
+            else:
+                #no debian config folder exists -> create one and fail
+                sh('dh_make -f ' + tar_file, cwd=ext_tar_path)
+                shutil.copytree(ext_tar_path + '/debian', self.build_pkg_path + '/debian')
+
+                out("ERROR: Please update the debian configs at $build_pkg_path/debian")
+                sys.exit(1)
+        else:
+            out("WARN: Debian dir is distributed with the source package")
+
     def package(self, do_source=False):
         out('Packaging project \'' + self.proj_name + '\'')
 
@@ -380,26 +403,8 @@ class Project:
             out("ERROR: Failed to extract distributable archive to " + tar_path)
             sys.exit(1)
 
-        #check for debian config folder, create one using dh_make if not existing
-        if not os.path.isdir(tar_path + '/debian'):
-            #debian config folder is not distributed
-            if os.path.isdir(self.pkg_path + '/debian'):
-                #found one in packaging dir
-                out("Debian dir in packaging repo: " + self.pkg_path + '/debian')
-                shutil.copytree(self.pkg_path + '/debian', tar_path + '/debian')
-            elif os.path.isdir(self.code_path + '/debian'):
-                #found one in code dir
-                out("Debian dir in code repo: " + self.code_path + '/debian')
-                shutil.copytree(self.code_path + '/debian', tar_path + '/debian')
-            else:
-                #no debian config folder exists -> create one and fail
-                sh('dh_make -f ' + tar_file, cwd=tar_path)
-                shutil.copytree(tar_path + '/debian', self.build_pkg_path + '/debian')
-
-                out("ERROR: Please update the debian configs at $build_pkg_path/debian")
-                sys.exit(1)
-        else:
-            out("WARN: Debian dir distributed with the source package")
+        # import debian config folder
+        self.import_debian_dir(tar_file, tar_path)
 
         #clear the directory
         sh('find . -iname "*.deb" -exec rm -f \'{}\' \;', cwd=self.build_pkg_path)
