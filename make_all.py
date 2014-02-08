@@ -355,48 +355,58 @@ class Project:
                 dist_file = max_tgz
         return dist_file
 
-    ''' Creates a distributable by using make dist for autotools projects or
-        exporting the current git work tree
+    ''' Creates a distributable by using make dist for autotools or makefile
+        projects or exporting the current git work tree
         Returns a tuple containing the following data:
             base - the name of the project
             version - the version of the project
             dist_file - the distributable tarball
     '''
+    def make_distributable_make_dist(self):
+        out('Using make dist packager')
+        sh('make dist', cwd=self.build_path)
+
+        dist_file = self.find_dist_tgz()
+
+        if dist_file == None:
+            out("ERROR: Could not find distributable package")
+            sys.exit(1)
+
+        m = re.match('^(.*)-([^-]*)\.tar\.gz$', dist_file, re.I)
+        if not m:
+            out('ERROR: could not parse the filename of an archive ' + dist_file)
+            sys.exit(1)
+
+        base = m.group(1)
+        version = m.group(2)
+        dist_file = os.path.join(self.build_path, dist_file)
+        return (base, version, dist_file)
+
+    def make_distributable_git_archive(self):
+        out('Using git packager')
+
+        base,version,deb_version = self.extract_changelog_version(self.find_debian_folder())
+        tar_base = base + '-' + version
+        dist_file = tar_base + '.tar.gz'
+        sh('git archive --worktree-attributes --prefix=\"' + tar_base
+            + '/' + '\" HEAD --format=tar.gz > \"' + dist_file + '\"',
+            cwd=self.code_path)
+
+        dist_file = os.path.join(self.code_path, dist_file)
+        return (base, version, dist_file)
+
     def make_distributable(self):
+
         #make a distributable archive
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
-            out('Using make dist packager')
-            sh('make dist', cwd=self.build_path)
+            return self.make_distributable_make_dist()
 
-            dist_file = self.find_dist_tgz()
+        elif self.vcs_type == VCS_TYPE_GIT:
+            return self.make_distributable_git_archive()
 
-            if dist_file == None:
-                out("ERROR: Could not find distributable package")
-                sys.exit(1)
-
-            m = re.match('^(.*)-([^-]*)\.tar\.gz$', dist_file, re.I)
-            if not m:
-                out('ERROR: could not parse the filename of an archive ' + dist_file)
-                sys.exit(1)
-
-            base = m.group(1)
-            version = m.group(2)
-            dist_file = os.path.join(self.build_path, dist_file)
         else:
-            out('Using git packager')
-            base,version,deb_version = self.extract_changelog_version(self.find_debian_folder())
-            tar_base = base + '-' + version
-            dist_file = tar_base + '.tar.gz'
-            if self.vcs_type == VCS_TYPE_GIT:
-                sh('git archive --worktree-attributes --prefix=\"' + tar_base
-                   + '/' + '\" HEAD --format=tar.gz > \"' + dist_file + '\"',
-                   cwd=self.code_path)
-            else:
-                out('ERROR: VCS not supported')
-                sys.exit(1)
-
-            dist_file = os.path.join(self.code_path, dist_file)
-        return (base, version, dist_file)
+            out('ERROR: VCS and project type not supported')
+            sys.exit(1)
 
     def package(self, do_source=False):
         out('Packaging project \'' + self.proj_name + '\'')
