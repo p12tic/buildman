@@ -419,15 +419,19 @@ class Project:
         #make debian package
         self.debuild(tar_path, do_source)
 
+    # Returns arguments for dpkg package signing utility
+    def get_key_arg(self):
+        if (debian_sign_key == None):
+            return ' -us -uc'
+        else:
+            return ' -k' + debian_sign_key
+
     # Runs debuild in the tar_path directory
     def debuild(self, tar_path, do_source):
         global root_path
         global debian_sign_key
 
-        if (debian_sign_key == None):
-            key_arg = ' -us -uc'
-        else:
-            key_arg = ' -k' + debian_sign_key
+        key_arg = self.get_key_arg()
 
         if (do_source == True):
             r = sh('debuild --no-lintian -S -sa ' + key_arg,
