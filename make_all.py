@@ -501,42 +501,44 @@ Actions:
  --debreinstall -D - reintalls most recently built binary packages to
    a local repository
 
+ --pristine - Package or a pristine project. Must not be used along
+   with --build or --clean flags.
+
  --nocheck -n - does not check the package after building
 
  --help  - displays this text
  """)
     #indentation
 
-for path in build_path, build_pkg_path:
-    if not os.path.exists(path):
-        os.makedirs(path)
-
 projects_to_build=[]
 
-# get the list of available projects
-available_projects = []
-for proj_dir in project_dirs:
-    try:
-        projects = os.listdir(proj_dir)
-    except:
-        continue
+def get_available_projects(dirs):
+    # get the list of available projects
+    available_projects = []
+    for d in dirs:
+        try:
+            projects = os.listdir(d)
+        except:
+            continue
 
-    for proj_name in projects:
-        curr_proj_dir = os.path.join(proj_dir, proj_name)
-        if os.path.isdir(curr_proj_dir):
-            available_projects.append((curr_proj_dir, proj_name))
+        for name in projects:
+            pdir = os.path.join(d, name)
+            if os.path.isdir(pdir):
+                available_projects.append((pdir, name))
+    return available_projects
 
 # parse arguments
 if (len(sys.argv) <= 1):
     out("ERROR: no name of project provided")
     out("Available projects: ")
 
-    for d,p in available_projects:
+    for d,p in get_available_projects(dirs):
         out( '\"' + p + '\"' + ' in directory ' + d)
     sys.exit(1)
 
 action=None
 do_check = True
+pristine = False
 
 ACTION_CLEAN=1
 ACTION_FULL_CLEAN=2
@@ -577,10 +579,11 @@ for arg in sys.argv:
         if not arg.startswith('-'):
             projects_to_build.append(arg)
 
-# check received arguments
+# check received projects
 checked_projects = []
 
 ident=None
+available_projects = get_available_projects(project_dirs)
 for proj in projects_to_build:
     for (d,p) in available_projects:
         if p == proj:
@@ -588,6 +591,10 @@ for proj in projects_to_build:
             break
         if p.find(proj) != -1:
             checked_projects.append((d, p))
+
+for path in build_path, build_pkg_path:
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 # if identical, ignore other
 if ident != None:
