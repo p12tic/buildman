@@ -272,8 +272,7 @@ class Project:
         out('ERROR: debian folder could not be found')
         sys.exit(1)
 
-    def extract_changelog_version(self):
-        deb_folder = self.find_debian_folder()
+    def extract_changelog_version(self, deb_folder):
         ch_fn = deb_folder + '/changelog'
         if not os.path.exists(ch_fn):
             out('ERROR: could not extract debian changelog')
@@ -373,7 +372,7 @@ class Project:
             dist_file = os.path.join(self.build_path, dist_file)
         else:
             out('Using git packager')
-            base,version,deb_version = self.extract_changelog_version()
+            base,version,deb_version = self.extract_changelog_version(self.find_debian_folder())
             tar_base = base + '-' + version
             dist_file = tar_base + '.tar.gz'
             if self.vcs_type == VCS_TYPE_GIT:
