@@ -35,6 +35,7 @@ num_processors = 2
 build_path =     root_path + "build/"
 build_pkg_path = root_path + "build_packaging/"
 build_deb_pkg_path = root_path + "build_debian/"
+build_pbuilder_path = root_path + "build_pbuilder/"
 pkg_path =       root_path + "checkouts_packaging/"
 log_path =       root_path + "log/"
 
@@ -53,6 +54,15 @@ project_dirs = [
 deb_project_dirs = [
     root_path + 'checkouts_debian/'
     ]
+
+# Pbuilder-specific options
+pbuilder_distribution = 'unstable'
+pbuilder_mirror =       'http://ftp.lt.debian.org/debian/'
+pbuilder_workdir_path = build_pbuilder_path + "workdir/"
+pbuilder_cache_path =   build_pbuilder_path + "aptcache/"
+pbuilder_tgz_path =     build_pbuilder_path + "base_tgzs/"
+pbuilder_tgz = pbuilder_tgz_path + 'base_' + pbuilder_distribution + '.tgz'
+
 
 def out(s):
     sys.stdout.write(s + '\n')
@@ -480,7 +490,19 @@ class Project:
                 out("ERROR: Building project "+ self.proj_name + " failed")
                 sys.exit(1)
 
-    def package_pristine(self, do_source=False):
+    def clean_path(self, path):
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        os.makedirs(path)
+
+    def find_dsc_in_path(self, path):
+        dscs = glob.glob(path + "/*.dsc")
+        if len(dscs) == 0:
+            return None
+        return dscs[0]
+
+    def package_pristine(self, do_source=False, use_pbuilder=False):
+        out("Packaging pristine sources")
         deb_dir = os.path.join(self.code_path, 'debian')
 
         # check is deb_dir exists
@@ -491,23 +513,38 @@ class Project:
         (name, version, deb_version) = self.extract_changelog_version(deb_dir)
 
         self.build_pkgver_path = self.build_pkg_path + '/' + version
-        if do_source:
-            self.build_pkgver_path += '_source'
 
-        # create a clean build dir
-        if os.path.isdir(self.build_pkgver_path):
-            shutil.rmtree(self.build_pkgver_path)
-        os.makedirs(self.build_pkgver_path)
+        build_path = self.build_pkgver_path
+        src_build_path = build_path + '_source'
 
         key_arg = self.get_key_arg()
 
-        if do_source:
+        if do_source or use_pbuilder:
+            self.clean_path(src_build_path)
             sh('git-buildpackage --git-pristine-tar --git-export-dir="' +
-               self.build_pkgver_path + '" -S -sa ' + key_arg, cwd=self.code_path)
-        else:
-            sh('git-buildpackage --git-pristine-tar --git-export-dir="' +
-               self.build_pkgver_path + '" -sa ' + key_arg, cwd=self.code_path)
+                src_build_path + '" -S -sa ' + key_arg, cwd=self.code_path)
 
+            if use_pbuilder:
+                self.clean_path(build_path)
+                dsc = self.find_dsc_in_path(src_build_path)
+                if not dsc:
+                    out("ERROR: Could not find .dsc file")
+                    sys.exit(1)
+                out("Using dsc:  " + dsc)
+
+                sh('sudo pbuilder build ' +
+                    ' --buildplace ' + pbuilder_workdir_path +
+                    ' --basetgz ' + pbuilder_tgz +
+                    ' --mirror ' + pbuilder_mirror +
+                    ' --aptcache ' + pbuilder_cache_path +
+                    ' --components main ' +
+                    ' --buildresult ' + build_path +
+                    ' ' + dsc, cwd=build_pbuilder_path)
+
+        else:
+            self.clean_path(build_path)
+            sh('git-buildpackage --git-pristine-tar --git-export-dir="' +
+                build_path + '" -sa ' + key_arg, cwd=self.code_path)
 
     def get_latest_pkgver(self):
         versions = []
@@ -574,6 +611,15 @@ Options:
  --pristine - Package or install a pristine project. Must not be used
    along the --build, --clean or --full_clean flags.
 
+ --use-pbuilder - Uses pbuilder to package the project. --create-pbuilder
+   must be run before the first time this is called.
+
+ --create-pbuilder - Creates a pbuilder environment. Must not be used with
+   any other options.
+
+ --update-pbuilder - Updates the pbuilder environment. Must not be used with
+   any other options.
+
  --nocheck -n - does not check the package after building
 
  --help  - displays this text
@@ -609,6 +655,8 @@ if (len(sys.argv) <= 1):
 action=None
 do_check = True
 pristine = False
+use_pbuilder = False
+pbuilder_action = None
 
 ACTION_CLEAN=1
 ACTION_FULL_CLEAN=2
@@ -619,6 +667,9 @@ ACTION_INSTALL=6
 ACTION_REINSTALL=7
 ACTION_DEBINSTALL=8
 ACTION_DEBREINSTALL=9
+
+PBUILDER_CREATE=1
+PBUILDER_UPDATE=2
 
 sys.argv.pop(0)
 for arg in sys.argv:
@@ -644,12 +695,49 @@ for arg in sys.argv:
         do_check = False
     elif arg=='--pristine':
         pristine = True
+    elif arg=='--use-pbuilder':
+        use_pbuilder = True
+    elif arg=='--create-pbuilder':
+        pbuilder_action = PBUILDER_CREATE
+    elif arg=='--update-pbuilder':
+        pbuilder_action = PBUILDER_UPDATE
     elif (arg=='--help'):
         show_help()
         sys.exit(1)
     else:
         if not arg.startswith('-'):
             projects_to_build.append(arg)
+
+if pbuilder_action:
+    if pristine or action != None:
+        out("ERROR: --create-pbuilder must not be used along with any "
+            "other options")
+        sys.exit(1)
+    out("Creating pbuilder environment. Please wait...")
+
+    if not os.path.exists(pbuilder_tgz_path):
+        os.makedirs(pbuilder_tgz_path)
+    if not os.path.exists(pbuilder_workdir_path):
+        os.makedirs(pbuilder_workdir_path)
+    if not os.path.exists(pbuilder_cache_path):
+        os.makedirs(pbuilder_cache_path)
+    if not os.path.exists(build_pbuilder_path):
+        os.makedirs(build_pbuilder_path)
+
+    actions = {
+        PBUILDER_CREATE : 'create',
+        PBUILDER_UPDATE : 'update'
+    }
+
+    sh('sudo pbuilder ' + actions[pbuilder_action] +
+       ' --distribution ' + pbuilder_distribution +
+       ' --debootstrapopts --variant=buildd ' +
+       ' --buildplace ' + pbuilder_workdir_path +
+       ' --basetgz ' + pbuilder_tgz +
+       ' --mirror ' + pbuilder_mirror +
+       ' --aptcache ' + pbuilder_cache_path +
+       ' --components main ', cwd=build_pbuilder_path)
+    sys.exit(0)
 
 if pristine:
     if action in [ ACTION_CLEAN, ACTION_FULL_CLEAN, ACTION_BUILD]:
@@ -724,7 +812,7 @@ elif (action == ACTION_PACKAGE_SOURCE):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         if pristine:
-            pr.package_pristine(do_source=True)
+            pr.package_pristine(do_source=True, use_pbuilder=use_pbuilder)
         else:
             pr.build()
             pr.check_build(do_check)
@@ -735,7 +823,7 @@ elif (action == ACTION_INSTALL):
         pr = Project(p,d)
 
         if pristine:
-            pr.package_pristine()
+            pr.package_pristine(use_pbuilder=use_pbuilder)
         else:
             pr.build()
             pr.check_build(do_check)
