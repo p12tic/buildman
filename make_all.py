@@ -806,7 +806,7 @@ elif (action == ACTION_PACKAGE):
     for (d,p) in checked_projects:
         pr = Project(p,d)
         if pristine:
-            pr.package_pristine()
+            pr.package_pristine(use_pbuilder=use_pbuilder)
         else:
             pr.build()
             pr.check_build(do_check)
@@ -849,7 +849,7 @@ elif (action == ACTION_DEBINSTALL):
         pr = Project(p,d)
 
         if pristine:
-            pr.package_pristine()
+            pr.package_pristine(use_pbuilder=use_pbuilder)
         else:
             pr.build()
             pr.check_build(do_check)
