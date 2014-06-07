@@ -96,8 +96,8 @@ VCS_TYPE_NONE=0
 VCS_TYPE_GIT=1
 
 def add_configure_args(proj_name):
-    if re.search(r'wnckmm', proj_name):
-        return '--enable-maintainer-mode'
+    if re.search(r'wnckmm', proj_name): return '--enable-maintainer-mode'
+    if re.search(r'glibmm', proj_name): return '--enable-maintainer-mode'
     return '--prefix=/usr'
 
 class Project:
