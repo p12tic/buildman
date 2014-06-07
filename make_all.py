@@ -341,7 +341,7 @@ class Project:
     # Returns None on failure
     def find_dist_tgz(self):
         tgzs = os.listdir(self.build_path)
-        tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') ]
+        tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') or tgz.endswith('.tar.xz') ]
 
         dist_file = None
         if len(tgzs) == 0:
@@ -370,6 +370,7 @@ class Project:
         Returns a tuple containing the following data:
             base - the name of the project
             version - the version of the project
+            ext - the format of the archive
             dist_file - the distributable tarball
     '''
     def make_distributable_make_dist(self):
@@ -382,15 +383,16 @@ class Project:
             out("ERROR: Could not find distributable package")
             sys.exit(1)
 
-        m = re.match('^(.*)-([^-]*)\.tar\.gz$', dist_file, re.I)
+        m = re.match('^(.*)-([^-]*)\.(tar\.(?:gz|xz))$', dist_file, re.I)
         if not m:
             out('ERROR: could not parse the filename of an archive ' + dist_file)
             sys.exit(1)
 
         base = m.group(1)
         version = m.group(2)
+        ext = m.group(3)
         dist_file = os.path.join(self.build_path, dist_file)
-        return (base, version, dist_file)
+        return (base, version, ext, dist_file)
 
     def make_distributable_git_archive(self):
         out('Using git packager')
@@ -403,7 +405,7 @@ class Project:
             cwd=self.code_path)
 
         dist_file = os.path.join(self.code_path, dist_file)
-        return (base, version, dist_file)
+        return (base, version, 'tar.gz', dist_file)
 
     # Checks the project makefile for dist target
     def does_makefile_contain_dist_target(self):
@@ -433,14 +435,14 @@ class Project:
     def package(self, do_source=False):
         out('Packaging project \'' + self.proj_name + '\'')
 
-        (base,version,dist_file) = self.make_distributable()
+        (base,version,ext,dist_file) = self.make_distributable()
         tar_base = base + '-' + version
 
         out('File: ' + dist_file)
         out('Name: ' + base + '; version: ' + version)
 
         self.build_pkgver_path = self.build_pkg_path + '/' + version
-        tar_file = self.build_pkgver_path + '/' + base + '_' + version + '.orig.tar.gz'
+        tar_file = self.build_pkgver_path + '/' + base + '_' + version + '.orig.' + ext
         tar_path = self.build_pkgver_path + '/' + tar_base
 
         # create a clean build dir
@@ -450,7 +452,7 @@ class Project:
 
         #move the distributable to the destination directory and cleanly extract it
         shutil.move(dist_file, tar_file)
-        sh('tar -xzf ' + tar_file + ' -C ' + self.build_pkgver_path, cwd=self.build_pkgver_path)
+        sh('tar -xf ' + tar_file + ' -C ' + self.build_pkgver_path, cwd=self.build_pkgver_path)
 
         #check if successful
         if not os.path.isdir(tar_path):
