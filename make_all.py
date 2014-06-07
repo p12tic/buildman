@@ -26,7 +26,7 @@ import sys
 
 #directory layout configuration
 root_path = os.environ['HOME'] + '/code/my/'
-archive_path = os.environ['HOME'] + '/downloads/apt/'
+archive_path = os.environ['HOME'] + '/code/apt/'
 
 copy_build_files_path = root_path + '/../my/copy_build_files.py'
 
