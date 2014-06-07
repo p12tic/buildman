@@ -650,8 +650,14 @@ if (len(sys.argv) <= 1):
     out("ERROR: no name of project provided")
     out("Available projects: ")
 
-    for d,p in get_available_projects(dirs):
+    for d,p in get_available_projects(project_dirs):
         out( '\"' + p + '\"' + ' in directory ' + d)
+
+    out("")
+    out("Available projects for pristine builds:")
+    for d,p in get_available_projects(deb_project_dirs):
+        out( '\"' + p + '\"' + ' in directory ' + d)
+
     sys.exit(1)
 
 action=None
