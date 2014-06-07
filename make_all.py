@@ -709,6 +709,8 @@ for arg in sys.argv:
     else:
         if not arg.startswith('-'):
             projects_to_build.append(arg)
+        else:
+            out("Ignored option: " + arg)
 
 if pbuilder_action:
     if pristine or action != None:
