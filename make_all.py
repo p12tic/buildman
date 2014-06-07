@@ -735,7 +735,9 @@ if pbuilder_action:
 
     sh('sudo pbuilder ' + actions[pbuilder_action] +
        ' --distribution ' + pbuilder_distribution +
-       ' --debootstrapopts --variant=buildd ' +
+       ' --debootstrapopts --variant=buildd' +
+       ' --debootstrapopts --keyring' +
+       ' --debootstrapopts /etc/apt/trusted.gpg' +
        ' --buildplace ' + pbuilder_workdir_path +
        ' --basetgz ' + pbuilder_tgz +
        ' --mirror ' + pbuilder_mirror +
