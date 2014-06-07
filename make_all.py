@@ -383,16 +383,16 @@ class Project:
             out("ERROR: Could not find distributable package")
             sys.exit(1)
 
-        m = re.match('^(.*)-([^-]*)\.(tar\.(?:gz|xz))$', dist_file, re.I)
+        m = re.match('(^.*-[^-]*)\.(tar\.(?:gz|xz))$', dist_file, re.I)
         if not m:
             out('ERROR: could not parse the filename of an archive ' + dist_file)
             sys.exit(1)
 
-        base = m.group(1)
-        version = m.group(2)
-        ext = m.group(3)
+        base,version,deb_version = self.extract_changelog_version(self.find_debian_folder())
+        tar_base = m.group(1)
+        ext = m.group(2)
         dist_file = os.path.join(self.build_path, dist_file)
-        return (base, version, ext, dist_file)
+        return (base, version, tar_base, ext, dist_file)
 
     def make_distributable_git_archive(self):
         out('Using git packager')
@@ -405,7 +405,7 @@ class Project:
             cwd=self.code_path)
 
         dist_file = os.path.join(self.code_path, dist_file)
-        return (base, version, 'tar.gz', dist_file)
+        return (base, version, tar_base, 'tar.gz', dist_file)
 
     # Checks the project makefile for dist target
     def does_makefile_contain_dist_target(self):
@@ -435,11 +435,11 @@ class Project:
     def package(self, do_source=False):
         out('Packaging project \'' + self.proj_name + '\'')
 
-        (base,version,ext,dist_file) = self.make_distributable()
-        tar_base = base + '-' + version
+        (base,version,tar_base,ext,dist_file) = self.make_distributable()
 
         out('File: ' + dist_file)
         out('Name: ' + base + '; version: ' + version)
+        out('Tar-dir: ' + tar_base)
 
         self.build_pkgver_path = self.build_pkg_path + '/' + version
         tar_file = self.build_pkgver_path + '/' + base + '_' + version + '.orig.' + ext
