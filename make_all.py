@@ -657,6 +657,16 @@ def get_available_projects(dirs):
                 available_projects.append((pdir, name))
     return available_projects
 
+def print_available_projects(project_dirs, deb_project_dirs):
+    out("Available projects: ")
+    for d,p in get_available_projects(project_dirs):
+        out( '\"' + p + '\"' + ' in directory ' + d)
+
+    out("")
+    out("Available projects for pristine builds:")
+    for d,p in get_available_projects(deb_project_dirs):
+        out( '\"' + p + '\"' + ' in directory ' + d)
+
 ACTION_CLEAN=1
 ACTION_FULL_CLEAN=2
 ACTION_BUILD=3
@@ -674,16 +684,7 @@ def main():
     # parse arguments
     if (len(sys.argv) <= 1):
         out("ERROR: no name of project provided")
-        out("Available projects: ")
-
-        for d,p in get_available_projects(project_dirs):
-            out( '\"' + p + '\"' + ' in directory ' + d)
-
-        out("")
-        out("Available projects for pristine builds:")
-        for d,p in get_available_projects(deb_project_dirs):
-            out( '\"' + p + '\"' + ' in directory ' + d)
-
+        print_available_projects(project_dirs, deb_project_dirs)
         sys.exit(1)
 
     action=None
