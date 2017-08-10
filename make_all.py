@@ -16,12 +16,10 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 import os
-import os.path
 import glob
 import subprocess
 import shutil
 import re
-import glob
 import sys
 
 #directory layout configuration
