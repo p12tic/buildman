@@ -182,8 +182,7 @@ class Project:
         elif self.build_type == BUILD_TYPE_CMAKE:
             # cmake project
 
-            if not os.path.isdir(self.build_path):
-                os.makedirs(self.build_path)
+            os.makedirs(self.build_path, exist_ok=True)
 
             cmd = 'cmake \'' + self.code_path + '\''
             out(cmd)
@@ -194,8 +193,7 @@ class Project:
 
         elif self.build_type == BUILD_TYPE_QMAKE:
             # qmake project
-            if not os.path.isdir(build_path):
-                os.makedirs(build_path)
+            os.makedirs(build_path, exist_ok=True)
 
             cmd = 'qmake \'' + self.code_path + '\''
             out(cmd)
@@ -739,14 +737,10 @@ def main():
             sys.exit(1)
         out("Creating pbuilder environment. Please wait...")
 
-        if not os.path.exists(pbuilder_tgz_path):
-            os.makedirs(pbuilder_tgz_path)
-        if not os.path.exists(pbuilder_workdir_path):
-            os.makedirs(pbuilder_workdir_path)
-        if not os.path.exists(pbuilder_cache_path):
-            os.makedirs(pbuilder_cache_path)
-        if not os.path.exists(build_pbuilder_path):
-            os.makedirs(build_pbuilder_path)
+        os.makedirs(pbuilder_tgz_path, exist_ok=True)
+        os.makedirs(pbuilder_workdir_path, exist_ok=True)
+        os.makedirs(pbuilder_cache_path, exist_ok=True)
+        os.makedirs(build_pbuilder_path, exist_ok=True)
 
         actions = {
             PBUILDER_CREATE : 'create',
@@ -787,8 +781,7 @@ def main():
                 checked_projects.append((d, p))
 
     for path in build_path, build_pkg_path:
-        if not os.path.exists(path):
-            os.makedirs(path)
+        os.makedirs(path, exist_ok=True)
 
     # if identical, ignore other
     if ident != None:
