@@ -297,7 +297,7 @@ class Project:
             sys.exit(1)
         for line in open(changelog_path).readlines():
             if line:
-                m = re.match(r'^\s*([\w_+-.]+)\s*\(([\w_.:+~]+)-([\w_.:]+)', line)
+                m = re.match(r'^\s*([\w_+-.]+)\s*\(([\w_.:+~]+)-([\w_.~+:]+)\)', line)
                 if not m:
                     out('ERROR: could not match changelog line: \'{0}\''.format(line))
                     sys.exit(1)
