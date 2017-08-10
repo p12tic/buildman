@@ -161,23 +161,24 @@ class Project:
                 os.makedirs(self.build_path)
                 build_mtime = 0.0
 
+            configure_path = os.path.join(self.code_path, 'configure')
             ac_mtime = os.path.getmtime(self.code_path + '/configure.ac')
-            if os.path.isfile(self.code_path + '/configure'):
-                c_mtime = os.path.getmtime(self.code_path + '/configure')
+            if os.path.isfile(configure_path):
+                c_mtime = os.path.getmtime(configure_path)
             else:
                 c_mtime = 0.0
 
             #rerun autoconf if needed
             if c_mtime < ac_mtime:
                 sh('autoconf; automake', cwd=self.code_path)
-                c_mtime = os.path.getmtime(self.code_path + '/configure')
+                c_mtime = os.path.getmtime(configure_path)
 
             #reconfigure if needed
 
             if build_mtime < c_mtime:
                 shutil.rmtree(self.build_path)
                 os.makedirs(self.build_path)
-                sh(self.code_path + '/configure ' + add_configure_args(self.proj_name),
+                sh(configure_path + ' ' + add_configure_args(self.proj_name),
                    cwd=self.build_path)
 
             #build
@@ -191,7 +192,7 @@ class Project:
 
             cmd = 'cmake \'{0}\''.format(self.code_path)
             out(cmd)
-            sh('cmake \"' + self.code_path + '\"' , cwd=self.build_path)
+            sh(cmd, cwd=self.build_path)
 
             out('Building project \'{0}\''.format(self.proj_name))
             sh('make all -j{0}'.format(num_processors), cwd=self.build_path)
@@ -208,7 +209,7 @@ class Project:
             code_dir = '.' + self.proj_name + '_codedir'
             sh('ln -fs \"' + self.code_path + '\" \"../' + code_dir + '\" ', cwd=self.paths.build_path)
 
-            sh('qmake \"../' + code_dir + '\"' , cwd=self.paths.build_path)
+            sh('qmake \"../{0}\"'.format(code_dir) , cwd=self.paths.build_path)
 
             out('Building project \'{0}\''.format(self.proj_name))
             sh('make all -j{0}'.format(num_processors), cwd=self.paths.build_path)
@@ -283,19 +284,20 @@ class Project:
             out('... (no Makefile)')
 
     def find_debian_folder(self):
-        if os.path.isdir(self.pkg_path + '/debian'):
-            return self.pkg_path + '/debian'
-        if os.path.isdir(self.code_path + '/debian'):
-            return self.code_path + '/debian'
+        for base_path in [ self.pkg_path, self.code_path ]:
+            debian_path = os.path.join(base_path, 'debian')
+            if os.path.isdir(debian_path):
+                return debian_path
+
         out('ERROR: debian folder could not be found')
         sys.exit(1)
 
     def extract_changelog_version(self, deb_folder):
-        ch_fn = deb_folder + '/changelog'
-        if not os.path.exists(ch_fn):
+        changelog_path = os.path.join(deb_folder, 'changelog')
+        if not os.path.exists(changelog_path):
             out('ERROR: could not extract debian changelog')
             sys.exit(1)
-        for line in open(ch_fn).readlines():
+        for line in open(changelog_path).readlines():
             if line:
                 m = re.match(r'^\s*([\w_+-.]+)\s*\(([\w_.:+~]+)-([\w_.:]+)', line)
                 if not m:
@@ -317,32 +319,33 @@ class Project:
     # on failure
     def import_debian_dir(self, tar_file, ext_tar_path):
         #debian config folder is not distributed
-        if os.path.isdir(self.pkg_path + '/debian'):
-            #found one in packaging dir
-            out("Debian dir in packaging repo: " + self.pkg_path + '/debian')
 
-            if (os.path.exists(ext_tar_path + '/debian')):
+        ext_tar_debian_path = os.path.join(ext_tar_path, 'debian')
+
+        candidate_paths = [
+            ( 'packaging', os.path.join(self.pkg_path, 'debian') ),
+            ( 'code', os.path.join(self.code_path, 'debian') ),
+        ]
+
+        for name, debian_path in candidate_paths:
+            out('Debian dir in {0} repo: {1}'.format(name, debian_path))
+
+            if (os.path.exists(ext_tar_debian_path)):
                 out("WARN: Debian dir comes with source package too. Overwriting")
-                shutil.rmtree(ext_tar_path + '/debian')
+                shutil.rmtree(ext_tar_debian_path)
 
-            shutil.copytree(self.pkg_path + '/debian', ext_tar_path + '/debian')
-        elif os.path.isdir(self.code_path + '/debian'):
-            #found one in code dir
-            out("Debian dir in code repo: " + self.code_path + '/debian')
+            shutil.copytree(debian_path, ext_tar_debian_path)
+            return
 
-            if (os.path.exists(ext_tar_path + '/debian')):
-                out("WARN: Debian dir comes with source package too. Overwriting")
-                shutil.rmtree(ext_tar_path + '/debian')
-
-            shutil.copytree(self.code_path + '/debian', ext_tar_path + '/debian')
-        elif os.path.isdir(ext_tar_path + '/debian'):
+        if os.path.isdir(ext_tar_debian_path):
             out("WARN: Debian dir is distributed with the source package")
         else:
             #no debian config folder exists -> create one and fail
             sh('dh_make -f ' + tar_file, cwd=ext_tar_path)
-            shutil.copytree(ext_tar_path + '/debian', self.build_pkg_path + '/debian')
+            build_pkg_debian_path = os.path.join(self.build_pkg_path, 'debian')
+            shutil.copytree(ext_tar_debian_path, build_pkg_debian_path)
 
-            out("ERROR: Please update the debian configs at {0}/debian".format(self.build_pkg_path))
+            out("ERROR: Please update the debian configs at {0}".format(build_pkg_debian_path))
             sys.exit(1)
 
     # Finds the distributable tar.gz archive created by the make dist rule.
