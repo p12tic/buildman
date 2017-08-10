@@ -637,6 +637,8 @@ Options:
 
  --nocheck -n - does not check the package after building
 
+ --pbuilder-dist <distribution> - sets the pbuilder distribution
+
  --help  - displays this text
  """)
     #indentation
@@ -696,7 +698,8 @@ def main():
     pbuilder_action = None
 
     sys.argv.pop(0)
-    for arg in sys.argv:
+    args = iter(sys.argv)
+    for arg in args:
         if (arg=='-c' or arg=='--clean'):
             action = ACTION_CLEAN
         elif (arg=='-f' or arg=='--full_clean'):
@@ -725,6 +728,8 @@ def main():
             pbuilder_action = PBUILDER_CREATE
         elif arg=='--update-pbuilder':
             pbuilder_action = PBUILDER_UPDATE
+        elif arg=='--pbuilder-dist':
+            paths.set_pbuilder_dist(next(args))
         elif (arg=='--help'):
             show_help()
             sys.exit(1)
