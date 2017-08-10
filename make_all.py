@@ -77,7 +77,7 @@ def out(s):
 def sh(cmd, cwd):
     code = subprocess.call(cmd, shell=True, cwd=cwd)
     if code != 0:
-        out('ERROR: Command \'' + cmd + '\' returned code ' + str(code))
+        out('ERROR: Command \'{0}\' returned code {1}'.format(cmd, code))
         sys.exit(code)
     return code
 
@@ -143,12 +143,12 @@ class Project:
         return VCS_TYPE_NONE
 
     def build(self):
-        out('Configuring project \'' + self.proj_name + '\'')
+        out('Configuring project \'{0}\''.format(self.proj_name))
 
-        out("Code path: " + self.code_path)
-        out("Build path: " + self.build_path)
-        out("Pkg build path: " + self.build_pkg_path)
-        out("Pkg path: " + self.pkg_path)
+        out("Code path: \'{0}\'".format(self.code_path))
+        out("Build path: \'{0}\'".format(self.build_path))
+        out("Pkg build path: \'{0}\'".format(self.build_pkg_path))
+        out("Pkg path: \'{0}\'".format(self.pkg_path))
 
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
             #autotools project
@@ -181,26 +181,26 @@ class Project:
                    cwd=self.build_path)
 
             #build
-            out('Building project \'' + self.proj_name + '\'')
-            sh('make all -j' + str(num_processors), cwd=self.build_path)
+            out('Building project \'{0}\''.format(self.proj_name))
+            sh('make all -j{0}'.format(num_processors), cwd=self.build_path)
 
         elif self.build_type == BUILD_TYPE_CMAKE:
             # cmake project
 
             os.makedirs(self.build_path, exist_ok=True)
 
-            cmd = 'cmake \'' + self.code_path + '\''
+            cmd = 'cmake \'{0}\''.format(self.code_path)
             out(cmd)
             sh('cmake \"' + self.code_path + '\"' , cwd=self.build_path)
 
-            out('Building project \'' + self.proj_name + '\'')
-            sh('make all -j' + str(num_processors), cwd=self.build_path)
+            out('Building project \'{0}\''.format(self.proj_name))
+            sh('make all -j{0}'.format(num_processors), cwd=self.build_path)
 
         elif self.build_type == BUILD_TYPE_QMAKE:
             # qmake project
             os.makedirs(self.paths.build_path, exist_ok=True)
 
-            cmd = 'qmake \'' + self.code_path + '\''
+            cmd = 'qmake \'{0}\''.format(self.code_path)
             out(cmd)
 
             # work around the issues with qmake out-of-source builds
@@ -210,8 +210,8 @@ class Project:
 
             sh('qmake \"../' + code_dir + '\"' , cwd=self.paths.build_path)
 
-            out('Building project \'' + self.proj_name + '\'')
-            sh('make all -j' + str(num_processors), cwd=self.paths.build_path)
+            out('Building project \'{0}\''.format(self.proj_name))
+            sh('make all -j{0}'.format(num_processors), cwd=self.paths.build_path)
 
         elif self.build_type == BUILD_TYPE_MAKEFILE:
             #simple makefile project. Rebuild everything on any update in the source tree
@@ -226,19 +226,19 @@ class Project:
             c_mtime = get_dir_mtime(self.code_path)
 
             if (build_mtime < c_mtime):
-                out('Building project \'' + self.proj_name + '\'')
+                out('Building project \'{0}\''.format(self.proj_name))
 
                 shutil.rmtree(self.build_path)
                 shutil.copytree(self.code_path, self.build_path)
 
-                sh('make all -j' + str(num_processors), cwd=self.build_path)
+                sh('make all -j{0}'.format(num_processors), cwd=self.build_path)
         else:
             # No makefile -- nothing to build, only package. We expect that
             # debian/rules will have enough information
             out('... (no Makefile)')
 
     def clean(self):
-        out('Cleaning project \'' + self.proj_name + '\'')
+        out('Cleaning project \'{0}\''.format(self.proj_name))
 
         if os.path.isdir(self.build_path):
             shutil.rmtree(self.build_path)
@@ -253,7 +253,7 @@ class Project:
                     os.remove(os.path.join(self.build_pkg_path, f))
 
     def reconf(self):
-        out('Reconfiguring project \'' + self.proj_name + '\'')
+        out('Reconfiguring project \'{0}\''.format(self.proj_name))
 
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
             sh('autoreconf', cwd=self.code_path)
@@ -264,7 +264,7 @@ class Project:
         if not do_check:
             return
 
-        out('Checking project \'' + self.proj_name + '\'')
+        out('Checking project \'{0}\''.format(self.proj_name))
 
         if self.build_type != BUILD_TYPE_NONE:
             # launch make check
@@ -272,7 +272,7 @@ class Project:
             if os.path.exists(mkpath):
                 mk = open(mkpath).read()
                 if re.search(r'\bcheck:', mk):
-                    sh('make check -j' + str(num_processors), cwd=self.build_path)
+                    sh('make check -j{0}'.format(num_processors), cwd=self.build_path)
                 else:
                     out('... (no check rule)')
             else:
@@ -299,7 +299,7 @@ class Project:
             if line:
                 m = re.match(r'^\s*([\w_+-.]+)\s*\(([\w_.:+~]+)-([\w_.:]+)', line)
                 if not m:
-                    out('ERROR: could not match changelog line: \"' + line + '\"')
+                    out('ERROR: could not match changelog line: \'{0}\''.format(line))
                     sys.exit(1)
                 name = m.group(1)
                 ver = m.group(2)
@@ -397,7 +397,7 @@ class Project:
 
         m = re.match('(^.*-[^-]*)\.(tar\.(?:gz|xz))$', dist_file, re.I)
         if not m:
-            out('ERROR: could not parse the filename of an archive ' + dist_file)
+            out('ERROR: could not parse the filename of an archive \'{0}\''.format(dist_file))
             sys.exit(1)
 
         base,version,deb_version = self.extract_changelog_version(self.find_debian_folder())
@@ -445,13 +445,13 @@ class Project:
             sys.exit(1)
 
     def package(self, do_source=False):
-        out('Packaging project \'' + self.proj_name + '\'')
+        out('Packaging project \'{0}\''.format(self.proj_name))
 
         (base,version,tar_base,ext,dist_file) = self.make_distributable()
 
-        out('File: ' + dist_file)
-        out('Name: ' + base + '; version: ' + version)
-        out('Tar-dir: ' + tar_base)
+        out('File: {0}'.format(dist_file))
+        out('Name: {0}; version: {1}'.format(base, version))
+        out('Tar-dir: {0}'.format(tar_base))
 
         self.build_pkgver_path = self.build_pkg_path + '/' + version
         tar_file = self.build_pkgver_path + '/' + base + '_' + version + '.orig.' + ext
@@ -523,7 +523,7 @@ class Project:
 
         # check is deb_dir exists
         if not os.path.isdir(deb_dir):
-            out("ERROR: No debian directory for project " + self.proj_name)
+            out("ERROR: No debian directory for project \'{0}\'".format(self.proj_name))
             sys.exit(1)
 
         (name, version, deb_version) = self.extract_changelog_version(deb_dir)
@@ -661,12 +661,12 @@ def get_available_projects(dirs):
 def print_available_projects(project_dirs, deb_project_dirs):
     out("Available projects: ")
     for d,p in get_available_projects(project_dirs):
-        out( '\"' + p + '\"' + ' in directory ' + d)
+        out('\'{0}\' in directory \'{1}\''.format(p, d))
 
     out("")
     out("Available projects for pristine builds:")
     for d,p in get_available_projects(deb_project_dirs):
-        out( '\"' + p + '\"' + ' in directory ' + d)
+        out('\'{0}\' in directory \'{1}\''.format(p, d))
 
 ACTION_CLEAN=1
 ACTION_FULL_CLEAN=2
@@ -732,7 +732,7 @@ def main():
             if not arg.startswith('-'):
                 projects_to_build.append(arg)
             else:
-                out("Ignored option: " + arg)
+                out("Ignored option: {0}".format(arg))
 
     if pbuilder_action:
         if pristine or action != None:
@@ -794,7 +794,7 @@ def main():
     if len(checked_projects) > 0:
         out("Found projects: ")
         for d,p in checked_projects:
-            out('\"' + p + '\"' + ' in directory ' + d)
+            out('\'{0}\' in directory \'{1}\''.format(p, d))
     else:
         out("ERROR: Project not found. Abort. ")
         sys.exit(1)
@@ -852,14 +852,14 @@ def main():
                 pr.check_build(do_check)
                 pr.package()
 
-            out("Installing project: " + p)
+            out("Installing project: \'{0}\'".format(p))
             pr.install()
             pr.debinstall()
 
     elif (action == ACTION_REINSTALL):
         for (d,p) in checked_projects:
             pr = Project(paths, p, d)
-            out("Installing project: " + p)
+            out("Installing project: \'{0}\'".format(p))
             pr.install()
             pr.debinstall()
 
@@ -874,17 +874,17 @@ def main():
                 pr.check_build(do_check)
                 pr.package()
 
-            out("Installing project: " + p)
+            out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
 
     elif (action == ACTION_DEBREINSTALL):
         for (d,p) in checked_projects:
-            out("Installing project: " + p)
             pr = Project(paths, p, d)
+            out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
 
     else:
-        out("ERROR: Wrong action!" + action)
+        out("ERROR: Wrong action! \'{0}\'".format(action))
         sys.exit(1)
 
     out("Success!")
