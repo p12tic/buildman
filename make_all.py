@@ -337,7 +337,7 @@ class Project:
             sh('dh_make -f ' + tar_file, cwd=ext_tar_path)
             shutil.copytree(ext_tar_path + '/debian', self.build_pkg_path + '/debian')
 
-            out("ERROR: Please update the debian configs at $build_pkg_path/debian")
+            out("ERROR: Please update the debian configs at {0}/debian".format(self.build_pkg_path))
             sys.exit(1)
 
     # Finds the distributable tar.gz archive created by the make dist rule.
