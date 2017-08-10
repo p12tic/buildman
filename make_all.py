@@ -513,7 +513,10 @@ class Project:
         return dscs[0]
 
     def package_pristine(self, do_source=False, use_pbuilder=False):
-        out("Packaging pristine sources")
+        if not use_pbuilder:
+            out("Packaging pristine sources")
+        else:
+            out("Packaging pristine sources with pbuilder")
         deb_dir = os.path.join(self.code_path, 'debian')
 
         # check is deb_dir exists
