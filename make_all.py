@@ -657,27 +657,6 @@ def get_available_projects(dirs):
                 available_projects.append((pdir, name))
     return available_projects
 
-# parse arguments
-if (len(sys.argv) <= 1):
-    out("ERROR: no name of project provided")
-    out("Available projects: ")
-
-    for d,p in get_available_projects(project_dirs):
-        out( '\"' + p + '\"' + ' in directory ' + d)
-
-    out("")
-    out("Available projects for pristine builds:")
-    for d,p in get_available_projects(deb_project_dirs):
-        out( '\"' + p + '\"' + ' in directory ' + d)
-
-    sys.exit(1)
-
-action=None
-do_check = True
-pristine = False
-use_pbuilder = False
-pbuilder_action = None
-
 ACTION_CLEAN=1
 ACTION_FULL_CLEAN=2
 ACTION_BUILD=3
@@ -691,202 +670,227 @@ ACTION_DEBREINSTALL=9
 PBUILDER_CREATE=1
 PBUILDER_UPDATE=2
 
-sys.argv.pop(0)
-for arg in sys.argv:
-    if (arg=='-c' or arg=='--clean'):
-        action = ACTION_CLEAN
-    elif (arg=='-f' or arg=='--full_clean'):
-        action = ACTION_FULL_CLEAN
-    elif (arg=='-b' or arg=='--build'):
-        action = ACTION_BUILD
-    elif (arg=='-p' or arg=='--package'):
-        action = ACTION_PACKAGE
-    elif (arg=='-s' or arg=='--package_source'):
-        action = ACTION_PACKAGE_SOURCE
-    elif (arg=='-i' or arg=='--install'):
-        action = ACTION_INSTALL
-    elif (arg=='-I' or arg=='--reinstall'):
-        action = ACTION_REINSTALL
-    elif (arg=='-d' or arg=='--debinstall'):
-        action = ACTION_DEBINSTALL
-    elif (arg=='-D' or arg=='--debreinstall'):
-        action = ACTION_DEBREINSTALL
-    elif (arg=='-n' or arg=='--nocheck'):
-        do_check = False
-    elif arg=='--pristine':
-        pristine = True
-    elif arg=='--use-pbuilder':
-        use_pbuilder = True
-    elif arg=='--create-pbuilder':
-        pbuilder_action = PBUILDER_CREATE
-    elif arg=='--update-pbuilder':
-        pbuilder_action = PBUILDER_UPDATE
-    elif (arg=='--help'):
-        show_help()
+def main():
+    # parse arguments
+    if (len(sys.argv) <= 1):
+        out("ERROR: no name of project provided")
+        out("Available projects: ")
+
+        for d,p in get_available_projects(project_dirs):
+            out( '\"' + p + '\"' + ' in directory ' + d)
+
+        out("")
+        out("Available projects for pristine builds:")
+        for d,p in get_available_projects(deb_project_dirs):
+            out( '\"' + p + '\"' + ' in directory ' + d)
+
         sys.exit(1)
+
+    action=None
+    do_check = True
+    pristine = False
+    use_pbuilder = False
+    pbuilder_action = None
+
+    sys.argv.pop(0)
+    for arg in sys.argv:
+        if (arg=='-c' or arg=='--clean'):
+            action = ACTION_CLEAN
+        elif (arg=='-f' or arg=='--full_clean'):
+            action = ACTION_FULL_CLEAN
+        elif (arg=='-b' or arg=='--build'):
+            action = ACTION_BUILD
+        elif (arg=='-p' or arg=='--package'):
+            action = ACTION_PACKAGE
+        elif (arg=='-s' or arg=='--package_source'):
+            action = ACTION_PACKAGE_SOURCE
+        elif (arg=='-i' or arg=='--install'):
+            action = ACTION_INSTALL
+        elif (arg=='-I' or arg=='--reinstall'):
+            action = ACTION_REINSTALL
+        elif (arg=='-d' or arg=='--debinstall'):
+            action = ACTION_DEBINSTALL
+        elif (arg=='-D' or arg=='--debreinstall'):
+            action = ACTION_DEBREINSTALL
+        elif (arg=='-n' or arg=='--nocheck'):
+            do_check = False
+        elif arg=='--pristine':
+            pristine = True
+        elif arg=='--use-pbuilder':
+            use_pbuilder = True
+        elif arg=='--create-pbuilder':
+            pbuilder_action = PBUILDER_CREATE
+        elif arg=='--update-pbuilder':
+            pbuilder_action = PBUILDER_UPDATE
+        elif (arg=='--help'):
+            show_help()
+            sys.exit(1)
+        else:
+            if not arg.startswith('-'):
+                projects_to_build.append(arg)
+            else:
+                out("Ignored option: " + arg)
+
+    if pbuilder_action:
+        if pristine or action != None:
+            out("ERROR: --create-pbuilder must not be used along with any "
+                "other options")
+            sys.exit(1)
+        out("Creating pbuilder environment. Please wait...")
+
+        if not os.path.exists(pbuilder_tgz_path):
+            os.makedirs(pbuilder_tgz_path)
+        if not os.path.exists(pbuilder_workdir_path):
+            os.makedirs(pbuilder_workdir_path)
+        if not os.path.exists(pbuilder_cache_path):
+            os.makedirs(pbuilder_cache_path)
+        if not os.path.exists(build_pbuilder_path):
+            os.makedirs(build_pbuilder_path)
+
+        actions = {
+            PBUILDER_CREATE : 'create',
+            PBUILDER_UPDATE : 'update'
+        }
+
+        sh('sudo pbuilder ' + actions[pbuilder_action] +
+        ' --distribution ' + pbuilder_distribution +
+        ' --debootstrapopts --variant=buildd' +
+        ' --debootstrapopts --keyring' +
+        ' --debootstrapopts /etc/apt/trusted.gpg' +
+        ' --buildplace ' + pbuilder_workdir_path +
+        ' --basetgz ' + pbuilder_tgz +
+        ' --mirror ' + pbuilder_mirror +
+        ' --aptcache ' + pbuilder_cache_path +
+        ' --components main ', cwd=build_pbuilder_path)
+        sys.exit(0)
+
+    if pristine:
+        if action in [ ACTION_CLEAN, ACTION_FULL_CLEAN, ACTION_BUILD]:
+            out("ERROR: --pristine must not be used along with --clean, "
+                "--full_clean and --build")
+            sys.exit(1)
+        project_dirs = deb_project_dirs
+        build_pkg_path = build_deb_pkg_path
+
+    # check received projects
+    checked_projects = []
+
+    ident=None
+    available_projects = get_available_projects(project_dirs)
+    for proj in projects_to_build:
+        for (d,p) in available_projects:
+            if p == proj:
+                ident=(d, p)
+                break
+            if p.find(proj) != -1:
+                checked_projects.append((d, p))
+
+    for path in build_path, build_pkg_path:
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+    # if identical, ignore other
+    if ident != None:
+        checked_projects = [(d, p)]
+
+    if len(checked_projects) > 0:
+        out("Found projects: ")
+        for d,p in checked_projects:
+            out('\"' + p + '\"' + ' in directory ' + d)
     else:
-        if not arg.startswith('-'):
-            projects_to_build.append(arg)
-        else:
-            out("Ignored option: " + arg)
-
-if pbuilder_action:
-    if pristine or action != None:
-        out("ERROR: --create-pbuilder must not be used along with any "
-            "other options")
+        out("ERROR: Project not found. Abort. ")
         sys.exit(1)
-    out("Creating pbuilder environment. Please wait...")
 
-    if not os.path.exists(pbuilder_tgz_path):
-        os.makedirs(pbuilder_tgz_path)
-    if not os.path.exists(pbuilder_workdir_path):
-        os.makedirs(pbuilder_workdir_path)
-    if not os.path.exists(pbuilder_cache_path):
-        os.makedirs(pbuilder_cache_path)
-    if not os.path.exists(build_pbuilder_path):
-        os.makedirs(build_pbuilder_path)
+    if (action == None):
+        out("WARN: Action not specified. Defaulting to compile+package+install")
+        action = ACTION_INSTALL
 
-    actions = {
-        PBUILDER_CREATE : 'create',
-        PBUILDER_UPDATE : 'update'
-    }
+    # do work
+    if (action == ACTION_FULL_CLEAN):
+        for (d,p) in checked_projects:
+            pr = Project(p,d)
+            pr.reconf()
+            pr.clean()
 
-    sh('sudo pbuilder ' + actions[pbuilder_action] +
-       ' --distribution ' + pbuilder_distribution +
-       ' --debootstrapopts --variant=buildd' +
-       ' --debootstrapopts --keyring' +
-       ' --debootstrapopts /etc/apt/trusted.gpg' +
-       ' --buildplace ' + pbuilder_workdir_path +
-       ' --basetgz ' + pbuilder_tgz +
-       ' --mirror ' + pbuilder_mirror +
-       ' --aptcache ' + pbuilder_cache_path +
-       ' --components main ', cwd=build_pbuilder_path)
-    sys.exit(0)
+    elif (action == ACTION_CLEAN):
+        for (d,p) in checked_projects:
+            pr = Project(p,d)
+            pr.clean()
 
-if pristine:
-    if action in [ ACTION_CLEAN, ACTION_FULL_CLEAN, ACTION_BUILD]:
-        out("ERROR: --pristine must not be used along with --clean, "
-            "--full_clean and --build")
+    elif (action == ACTION_BUILD):
+        for (d,p) in checked_projects:
+            pr = Project(p,d)
+            pr.build()
+            pr.check_build(do_check)
+
+    elif (action == ACTION_PACKAGE):
+        for (d,p) in checked_projects:
+            pr = Project(p,d)
+            if pristine:
+                pr.package_pristine(use_pbuilder=use_pbuilder)
+            else:
+                pr.build()
+                pr.check_build(do_check)
+                pr.package()
+
+    elif (action == ACTION_PACKAGE_SOURCE):
+        for (d,p) in checked_projects:
+            pr = Project(p,d)
+            if pristine:
+                pr.package_pristine(do_source=True, use_pbuilder=use_pbuilder)
+            else:
+                pr.build()
+                pr.check_build(do_check)
+                pr.package(do_source=True)
+
+    elif (action == ACTION_INSTALL):
+        for (d,p) in checked_projects:
+            pr = Project(p,d)
+
+            if pristine:
+                pr.package_pristine(use_pbuilder=use_pbuilder)
+            else:
+                pr.build()
+                pr.check_build(do_check)
+                pr.package()
+
+            out("Installing project: " + p)
+            pr.install()
+            pr.debinstall()
+
+    elif (action == ACTION_REINSTALL):
+        for (d,p) in checked_projects:
+            pr = Project(p,d)
+            out("Installing project: " + p)
+            pr.install()
+            pr.debinstall()
+
+    elif (action == ACTION_DEBINSTALL):
+        for (d,p) in checked_projects:
+            pr = Project(p,d)
+
+            if pristine:
+                pr.package_pristine(use_pbuilder=use_pbuilder)
+            else:
+                pr.build()
+                pr.check_build(do_check)
+                pr.package()
+
+            out("Installing project: " + p)
+            pr.debinstall()
+
+    elif (action == ACTION_DEBREINSTALL):
+        for (d,p) in checked_projects:
+            out("Installing project: " + p)
+            pr = Project(p,d)
+            pr.debinstall()
+
+    else:
+        out("ERROR: Wrong action!" + action)
         sys.exit(1)
-    project_dirs = deb_project_dirs
-    build_pkg_path = build_deb_pkg_path
 
-# check received projects
-checked_projects = []
+    out("Success!")
 
-ident=None
-available_projects = get_available_projects(project_dirs)
-for proj in projects_to_build:
-    for (d,p) in available_projects:
-        if p == proj:
-            ident=(d, p)
-            break
-        if p.find(proj) != -1:
-            checked_projects.append((d, p))
-
-for path in build_path, build_pkg_path:
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-# if identical, ignore other
-if ident != None:
-    checked_projects = [(d, p)]
-
-if len(checked_projects) > 0:
-    out("Found projects: ")
-    for d,p in checked_projects:
-        out('\"' + p + '\"' + ' in directory ' + d)
-else:
-    out("ERROR: Project not found. Abort. ")
-    sys.exit(1)
-
-if (action == None):
-    out("WARN: Action not specified. Defaulting to compile+package+install")
-    action = ACTION_INSTALL
-
-# do work
-if (action == ACTION_FULL_CLEAN):
-    for (d,p) in checked_projects:
-        pr = Project(p,d)
-        pr.reconf()
-        pr.clean()
-
-elif (action == ACTION_CLEAN):
-    for (d,p) in checked_projects:
-        pr = Project(p,d)
-        pr.clean()
-
-elif (action == ACTION_BUILD):
-    for (d,p) in checked_projects:
-        pr = Project(p,d)
-        pr.build()
-        pr.check_build(do_check)
-
-elif (action == ACTION_PACKAGE):
-    for (d,p) in checked_projects:
-        pr = Project(p,d)
-        if pristine:
-            pr.package_pristine(use_pbuilder=use_pbuilder)
-        else:
-            pr.build()
-            pr.check_build(do_check)
-            pr.package()
-
-elif (action == ACTION_PACKAGE_SOURCE):
-    for (d,p) in checked_projects:
-        pr = Project(p,d)
-        if pristine:
-            pr.package_pristine(do_source=True, use_pbuilder=use_pbuilder)
-        else:
-            pr.build()
-            pr.check_build(do_check)
-            pr.package(do_source=True)
-
-elif (action == ACTION_INSTALL):
-    for (d,p) in checked_projects:
-        pr = Project(p,d)
-
-        if pristine:
-            pr.package_pristine(use_pbuilder=use_pbuilder)
-        else:
-            pr.build()
-            pr.check_build(do_check)
-            pr.package()
-
-        out("Installing project: " + p)
-        pr.install()
-        pr.debinstall()
-
-elif (action == ACTION_REINSTALL):
-    for (d,p) in checked_projects:
-        pr = Project(p,d)
-        out("Installing project: " + p)
-        pr.install()
-        pr.debinstall()
-
-elif (action == ACTION_DEBINSTALL):
-    for (d,p) in checked_projects:
-        pr = Project(p,d)
-
-        if pristine:
-            pr.package_pristine(use_pbuilder=use_pbuilder)
-        else:
-            pr.build()
-            pr.check_build(do_check)
-            pr.package()
-
-        out("Installing project: " + p)
-        pr.debinstall()
-
-elif (action == ACTION_DEBREINSTALL):
-    for (d,p) in checked_projects:
-        out("Installing project: " + p)
-        pr = Project(p,d)
-        pr.debinstall()
-
-else:
-    out("ERROR: Wrong action!" + action)
-    sys.exit(1)
-
-out("Success!")
+if __name__ == '__main__':
+    main()
 
