@@ -18,7 +18,7 @@
 import os
 import os.path
 import glob
-from subprocess import call
+import subprocess
 import shutil
 import re
 import glob
@@ -69,7 +69,7 @@ def out(s):
     sys.stdout.flush()
 
 def sh(cmd, cwd):
-    code = call(cmd, shell=True, cwd=cwd)
+    code = subprocess.call(cmd, shell=True, cwd=cwd)
     if code != 0:
         out('ERROR: Command \'' + cmd + '\' returned code ' + str(code))
         sys.exit(code)
