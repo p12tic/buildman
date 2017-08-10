@@ -51,7 +51,7 @@ class PathConf:
 
         self.project_dirs = [ os.path.join(self.root_path, fn) for fn in project_fns ]
 
-        deb_project_fns = [ 'checkouts_debian' ]
+        deb_project_fns = [ 'checkouts_debian', 'mods_debian' ]
 
         self.deb_project_dirs = [ os.path.join(self.root_path, fn) for fn in deb_project_fns ]
 
@@ -535,13 +535,23 @@ class Project:
 
         if do_source or use_pbuilder:
             self.clean_path(src_build_path)
-            sh('gbp buildpackage --git-pristine-tar --git-export-dir="' +
-                src_build_path + '" -S -sa ' + key_arg, cwd=self.code_path)
+
+            orig_tars = glob.glob(os.path.join(self.code_path, '../{0}_{1}.orig.tar.*'.format(name, version)))
+            no_repo = len(orig_tars) > 0
+
+            dsc_filename = self.compute_dsc_filename(name, version, deb_version)
+
+            if no_repo:
+                out('Packaging bare sources without VCS')
+                sh('dpkg-source -b .', cwd=self.code_path)
+                dsc_path = os.path.join(self.code_path, '..', dsc_filename)
+            else:
+                sh('gbp buildpackage --git-pristine-tar --git-export-dir="' +
+                    src_build_path + '" -S -sa ' + key_arg, cwd=self.code_path)
+                dsc_path = os.path.join(src_build_path, dsc_filename)
 
             if use_pbuilder:
                 self.clean_path(build_path)
-                dsc_path = os.path.join(src_build_path,
-                                        self.compute_dsc_filename(name, version, deb_version))
 
                 out("Using dsc: \'{0}\'".format(dsc_path))
                 if not os.path.isfile(dsc_path):
@@ -645,19 +655,42 @@ Options:
 
 projects_to_build=[]
 
+def get_projects_in_dir(path, filename):
+    if not os.path.isdir(path):
+        return []
+
+    if glob.glob(path + "/*.dsc"):
+        debian_projects = []
+
+        for child_fn in os.listdir(path):
+            child_path = os.path.join(path, child_fn)
+            if not os.path.isdir(child_path):
+                continue
+
+            child_debian_path = os.path.join(child_path, 'debian')
+            if not os.path.isdir(child_debian_path):
+                continue
+
+            debian_projects += [ (child_path, filename + '_' + child_fn) ]
+
+        return debian_projects
+    else:
+
+        return [ (path, filename) ]
+
 def get_available_projects(dirs):
     # get the list of available projects
     available_projects = []
     for d in dirs:
         try:
-            projects = os.listdir(d)
+            project_fns = os.listdir(d)
         except:
             continue
 
-        for name in projects:
-            pdir = os.path.join(d, name)
-            if os.path.isdir(pdir):
-                available_projects.append((pdir, name))
+        for fn in project_fns:
+            path = os.path.join(d, fn)
+            available_projects += get_projects_in_dir(path, fn)
+
     return available_projects
 
 def print_available_projects(project_dirs, deb_project_dirs):
