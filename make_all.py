@@ -26,10 +26,16 @@ import sys
 class PathConf:
 
     def __init__(self):
-        self.pbuilder_distribution = 'unstable'
-        self.init_paths()
+        self.set_pbuilder_dist('unstable')
 
     def set_pbuilder_dist(self, dist):
+        if '-' in dist:
+            dist_suite = dist
+            dist = dist.split('-')[0]
+            self.pbuilder_suite = dist_suite
+        else:
+            self.pbuilder_suite = dist
+
         self.pbuilder_distribution = dist
         self.init_paths()
 
@@ -57,10 +63,15 @@ class PathConf:
 
         # Pbuilder-specific options
         self.pbuilder_mirror = 'http://ftp.lt.debian.org/debian/'
+
+        self.pbuilder_othermirror = None
+        if self.pbuilder_suite != self.pbuilder_distribution:
+            self.pbuilder_othermirror = 'deb {0} {1} main'.format(self.pbuilder_mirror, self.pbuilder_suite)
+
         self.pbuilder_workdir_path = os.path.join(self.build_pbuilder_path, "workdir")
         self.pbuilder_cache_path = os.path.join(self.build_pbuilder_path, "aptcache")
         self.pbuilder_tgz_path = os.path.join(self.build_pbuilder_path, "base_tgzs")
-        self.pbuilder_tgz = os.path.join(self.pbuilder_tgz_path, 'base_' + self.pbuilder_distribution + '.tgz')
+        self.pbuilder_tgz = os.path.join(self.pbuilder_tgz_path, 'base_' + self.pbuilder_suite + '.tgz')
 
 num_processors = 2
 
@@ -103,6 +114,11 @@ def add_configure_args(proj_name):
     if re.search(r'wnckmm', proj_name): return '--enable-maintainer-mode'
     if re.search(r'glibmm', proj_name): return '--enable-maintainer-mode'
     return '--prefix=/usr'
+
+def get_pbuilder_othermirror_opt(othermirror):
+    if othermirror is None:
+        return ''
+    return ' --othermirror "{0}"'.format(othermirror)
 
 class Project:
 
@@ -562,6 +578,7 @@ class Project:
                     ' --buildplace ' + self.paths.pbuilder_workdir_path +
                     ' --basetgz ' + self.paths.pbuilder_tgz +
                     ' --mirror ' + self.paths.pbuilder_mirror +
+                    get_pbuilder_othermirror_opt(self.paths.pbuilder_othermirror) +
                     ' --aptcache ' + self.paths.pbuilder_cache_path +
                     ' --components main ' +
                     ' --buildresult ' + build_path +
@@ -797,6 +814,7 @@ def main():
         ' --buildplace ' + paths.pbuilder_workdir_path +
         ' --basetgz ' + paths.pbuilder_tgz +
         ' --mirror ' + paths.pbuilder_mirror +
+        get_pbuilder_othermirror_opt(paths.pbuilder_othermirror) +
         ' --aptcache ' + paths.pbuilder_cache_path +
         ' --components main ', cwd=paths.build_pbuilder_path)
         sys.exit(0)
