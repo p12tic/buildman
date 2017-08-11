@@ -73,7 +73,7 @@ class PathConf:
         self.pbuilder_tgz_path = os.path.join(self.build_pbuilder_path, "base_tgzs")
         self.pbuilder_tgz = os.path.join(self.pbuilder_tgz_path, 'base_' + self.pbuilder_suite + '.tgz')
 
-num_processors = 2
+num_processors = 8
 
 # the ID of the key that debian sources and binaries should be signed with
 # or None if signing is not wanted
