@@ -8,13 +8,13 @@ import fnmatch
 import shutil
 import time
 
-if len(sys.argv) < 1:
-    print("Bad arguments")
+if 'P12_BUILD_PATH' not in os.environ:
+    print(os.environ)
+    print('P12_BUILD_PATH not in environment. Aborting...')
     sys.exit(1)
 
 target_path = os.getcwd()
-sys.argv.pop(0)
-src_path = sys.argv[0]
+src_path = os.environ['P12_BUILD_PATH']
 
 if re.search(r'kicad', target_path):
     target_path += '/build/kicad'

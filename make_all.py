@@ -101,12 +101,12 @@ def out(s):
     sys.stdout.flush()
 
 
-def sh(cmd, cwd):
+def sh(cmd, cwd, env=None):
     out('DBG: Executing {0}'.format(cmd))
     if isinstance(cmd, list):
-        code = subprocess.call(cmd, cwd=cwd)
+        code = subprocess.call(cmd, cwd=cwd, env=env)
     else:
-        code = subprocess.call(cmd, shell=True, cwd=cwd)
+        code = subprocess.call(cmd, shell=True, cwd=cwd, env=env)
     if code != 0:
         out('ERROR: Command \'{0}\' returned code {1}'.format(cmd, code))
         sys.exit(code)
@@ -571,12 +571,12 @@ class Project:
         else:
             r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel=8',
                     '--no-lintian',
-                    '--build-hook=\"{0} {1}\"'.format(
+                    '--build-hook=\"{0}\"'.format(
                         self.paths.copy_build_files_path,
-                        self.build_path
-                    ),
+                    ), '-e', 'P12_BUILD_PATH',
                     '-sa'] + key_args,
-                   cwd=tar_path)
+                   cwd=tar_path,
+                   env={'P12_BUILD_PATH': self.build_path})
             if r != 0:
                 out("ERROR: Building project {0} failed".format(self.proj_name))
                 sys.exit(1)
