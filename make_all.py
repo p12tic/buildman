@@ -22,7 +22,8 @@ import shutil
 import re
 import sys
 
-#directory layout configuration
+
+# directory layout configuration
 class PathConf:
 
     def __init__(self):
@@ -44,46 +45,64 @@ class PathConf:
         self.root_path = os.path.join(self.home_path, 'code/my')
         self.archive_path = os.path.join(self.home_path, 'code/apt')
 
-        self.copy_build_files_path = os.path.join(self.root_path, '../my/copy_build_files.py')
+        self.copy_build_files_path = os.path.join(self.root_path,
+                                                  '../my/copy_build_files.py')
 
         self.build_path = os.path.join(self.root_path, "build")
         self.build_pkg_path = os.path.join(self.root_path, "build_packaging")
         self.build_deb_pkg_path = os.path.join(self.root_path, "build_debian")
-        self.build_pbuilder_path = os.path.join(self.root_path, "build_pbuilder")
+        self.build_pbuilder_path = os.path.join(self.root_path,
+                                                'build_pbuilder')
         self.pkg_path = os.path.join(self.root_path, "checkouts_packaging")
         self.log_path = os.path.join(self.root_path, "log")
 
-        project_fns = [ 'checkouts', 'local', 'mods' ]
+        project_fns = ['checkouts', 'local', 'mods']
 
-        self.project_dirs = [ os.path.join(self.root_path, fn) for fn in project_fns ]
+        self.project_dirs = [os.path.join(self.root_path, fn)
+                             for fn in project_fns]
 
-        deb_project_fns = [ 'checkouts_debian', 'mods_debian' ]
+        deb_project_fns = ['checkouts_debian', 'mods_debian']
 
-        self.deb_project_dirs = [ os.path.join(self.root_path, fn) for fn in deb_project_fns ]
+        self.deb_project_dirs = [os.path.join(self.root_path, fn)
+                                 for fn in deb_project_fns]
 
         # Pbuilder-specific options
         self.pbuilder_mirror = 'http://ftp.lt.debian.org/debian/'
 
         self.pbuilder_othermirror = None
         if self.pbuilder_suite != self.pbuilder_distribution:
-            self.pbuilder_othermirror = 'deb {0} {1} main'.format(self.pbuilder_mirror, self.pbuilder_suite)
+            self.pbuilder_othermirror = \
+                'deb {0} {1} main'.format(self.pbuilder_mirror,
+                                          self.pbuilder_suite)
 
-        self.pbuilder_workdir_path = os.path.join(self.build_pbuilder_path, "workdir")
-        self.pbuilder_cache_path = os.path.join(self.build_pbuilder_path, "aptcache")
-        self.pbuilder_tgz_path = os.path.join(self.build_pbuilder_path, "base_tgzs")
-        self.pbuilder_tgz = os.path.join(self.pbuilder_tgz_path, 'base_' + self.pbuilder_suite + '.tgz')
+        self.pbuilder_workdir_path = \
+            os.path.join(self.build_pbuilder_path, "workdir")
+        self.pbuilder_cache_path = \
+            os.path.join(self.build_pbuilder_path, "aptcache")
+        self.pbuilder_tgz_path = \
+            os.path.join(self.build_pbuilder_path, "base_tgzs")
 
-num_processors = 8
+        self.pbuilder_tgz = \
+            os.path.join(self.pbuilder_tgz_path,
+                         'base_' + self.pbuilder_suite + '.tgz')
+
+
+num_processors = 2
 
 # the ID of the key that debian sources and binaries should be signed with
 # or None if signing is not wanted
 debian_sign_key = '0x0374452d'
 
+
 def out(s):
+    if isinstance(s, list):
+        s = str(s)
     sys.stdout.write(s + '\n')
     sys.stdout.flush()
 
+
 def sh(cmd, cwd):
+    out('DBG: Executing {0}'.format(cmd))
     if isinstance(cmd, list):
         code = subprocess.call(cmd, cwd=cwd)
     else:
@@ -93,10 +112,11 @@ def sh(cmd, cwd):
         sys.exit(code)
     return code
 
+
 def get_dir_mtime(path):
     max_mtime = 0
-    for dirname,subdirs,files in os.walk(path):
-        if re.search('\.git', dirname):
+    for dirname, subdirs, files in os.walk(path):
+        if re.search(r'\.git', dirname):
             continue
         for fname in files:
             mtime = os.path.getmtime(os.path.join(dirname, fname))
@@ -104,24 +124,30 @@ def get_dir_mtime(path):
                 max_mtime = mtime
     return max_mtime
 
-BUILD_TYPE_NONE=0
-BUILD_TYPE_AUTOTOOLS=1
-BUILD_TYPE_CMAKE=2
-BUILD_TYPE_QMAKE=3
-BUILD_TYPE_MAKEFILE=4
 
-VCS_TYPE_NONE=0
-VCS_TYPE_GIT=1
+BUILD_TYPE_NONE = 0
+BUILD_TYPE_AUTOTOOLS = 1
+BUILD_TYPE_CMAKE = 2
+BUILD_TYPE_QMAKE = 3
+BUILD_TYPE_MAKEFILE = 4
 
-def add_configure_args(proj_name):
-    if re.search(r'wnckmm', proj_name): return '--enable-maintainer-mode'
-    if re.search(r'glibmm', proj_name): return '--enable-maintainer-mode'
-    return '--prefix=/usr'
+VCS_TYPE_NONE = 0
+VCS_TYPE_GIT = 1
+
+
+def get_configure_args(proj_name):
+    if re.search(r'wnckmm', proj_name):
+        return ['--enable-maintainer-mode']
+    if re.search(r'glibmm', proj_name):
+        return ['--enable-maintainer-mode']
+    return ['--prefix=/usr']
+
 
 def get_pbuilder_othermirror_opt(othermirror):
     if othermirror is None:
-        return ''
-    return ' --othermirror "{0}"'.format(othermirror)
+        return []
+    return ['--othermirror', othermirror]
+
 
 class Project:
 
@@ -134,7 +160,8 @@ class Project:
         self.code_path = self.proj_dir
         self.build_path = os.path.join(self.paths.build_path, self.proj_name)
         self.pkg_path = os.path.join(self.paths.pkg_path, self.proj_name)
-        self.build_pkg_path = os.path.join(self.paths.build_pkg_path, self.proj_name)
+        self.build_pkg_path = os.path.join(self.paths.build_pkg_path,
+                                           self.proj_name)
         self.build_pkgver_path = None
 
         self.build_type = self.get_build_type()
@@ -143,7 +170,7 @@ class Project:
     def get_build_type(self):
 
         if (os.path.exists(self.code_path + '/configure') or
-            os.path.exists(self.code_path + '/configure.ac')):
+                os.path.exists(self.code_path + '/configure.ac')):
             return BUILD_TYPE_AUTOTOOLS
         if glob.glob(self.code_path + "/*.pro"):
             return BUILD_TYPE_QMAKE
@@ -168,9 +195,10 @@ class Project:
         out("Pkg path: \'{0}\'".format(self.pkg_path))
 
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
-            #autotools project
+            # autotools project
 
-            #get modification time of the build directory, create if it does not exist
+            # get modification time of the build directory,
+            # create if it does not exist
 
             if os.path.isdir(self.build_path):
                 build_mtime = os.path.getmtime(self.build_path)
@@ -185,13 +213,13 @@ class Project:
             else:
                 c_mtime = 0.0
 
-            #rerun autoconf if needed
+            # rerun autoconf if needed
             if c_mtime < ac_mtime:
                 sh(['autoconf'], cwd=self.code_path)
                 sh(['automake'], cwd=self.code_path)
                 c_mtime = os.path.getmtime(configure_path)
 
-            #reconfigure if needed
+            # reconfigure if needed
 
             if build_mtime < c_mtime:
                 shutil.rmtree(self.build_path)
@@ -199,7 +227,7 @@ class Project:
                 sh([configure_path] + get_configure_args(self.proj_name),
                    cwd=self.build_path)
 
-            #build
+            # build
             out('Building project \'{0}\''.format(self.proj_name))
             sh(['make', 'all', '-j{0}'.format(num_processors)],
                cwd=self.build_path)
@@ -226,7 +254,7 @@ class Project:
 
             # work around the issues with qmake out-of-source builds
             # In short, only directories at the same level are supported
-            code_dir = '.' + self.proj_name + '_codedir'
+            code_dir = '.{0}_codedir'.format(self.proj_name)
             sh(['ln', '-fs', self.code_path, '../' + code_dir],
                cwd=self.paths.build_path)
 
@@ -237,9 +265,11 @@ class Project:
                cwd=self.paths.build_path)
 
         elif self.build_type == BUILD_TYPE_MAKEFILE:
-            #simple makefile project. Rebuild everything on any update in the source tree
+            # Simple makefile project. Rebuild everything on any update in the
+            # source tree
 
-            #get modification time of the build directory, create if it does not exist
+            # Get modification time of the build directory, create if it does
+            # not exist
             if os.path.isdir(self.build_path):
                 build_mtime = get_dir_mtime(self.build_path)
             else:
@@ -268,12 +298,12 @@ class Project:
             shutil.rmtree(self.build_path)
 
         if os.path.isdir(self.build_pkg_path):
-            files=os.listdir(self.build_pkg_path)
+            files = os.listdir(self.build_pkg_path)
             for f in files:
-                if (re.search('\.deb$', f) or
-                    re.search('\.changes$', f) or
-                    re.search('\.build$', f) or
-                    re.search('\.dsc$', f)):
+                if (re.search(r'\.deb$', f) or
+                        re.search(r'\.changes$', f) or
+                        re.search(r'\.build$', f) or
+                        re.search(r'\.dsc$', f)):
                     os.remove(os.path.join(self.build_pkg_path, f))
 
     def reconf(self):
@@ -308,7 +338,7 @@ class Project:
             out('... (no Makefile)')
 
     def find_debian_folder(self):
-        for base_path in [ self.pkg_path, self.code_path ]:
+        for base_path in [self.pkg_path, self.code_path]:
             debian_path = os.path.join(base_path, 'debian')
             if os.path.isdir(debian_path):
                 return debian_path
@@ -323,9 +353,11 @@ class Project:
             sys.exit(1)
         for line in open(changelog_path).readlines():
             if line:
-                m = re.match(r'^\s*([\w_+-.]+)\s*\(([\w_.:+~]+)-([\w_.~+:]+)\)', line)
+                m = re.match(r'^\s*([\w_+-.]+)\s*\(([\w_.:+~]+)(?:-([\w_.~+:]+))?\)',
+                             line)
                 if not m:
-                    out('ERROR: could not match changelog line: \'{0}\''.format(line))
+                    out('ERROR: could not match changelog line: \'{0}\''.format(
+                        line))
                     sys.exit(1)
                 name = m.group(1)
                 ver = m.group(2)
@@ -333,22 +365,22 @@ class Project:
 
                 # strip epoch
                 if ':' in ver:
-                    epoch,sep,ver = ver.rpartition(':')
+                    epoch, sep, ver = ver.rpartition(':')
 
                 return (name, ver, deb_ver)
         out('ERROR: could not match any changelog line')
         sys.exit(1)
 
-    # imports debian directory for a project extracted to ext_tar_path. Exits
+    # Imports debian directory for a project extracted to ext_tar_path. Exits
     # on failure
     def import_debian_dir(self, tar_file, ext_tar_path):
-        #debian config folder is not distributed
+        # Debian config folder is not distributed
 
         ext_tar_debian_path = os.path.join(ext_tar_path, 'debian')
 
         candidate_paths = [
-            ( 'packaging', os.path.join(self.pkg_path, 'debian') ),
-            ( 'code', os.path.join(self.code_path, 'debian') ),
+            ('packaging', os.path.join(self.pkg_path, 'debian')),
+            ('code', os.path.join(self.code_path, 'debian')),
         ]
 
         for name, debian_path in candidate_paths:
@@ -358,7 +390,8 @@ class Project:
             out('Debian dir in {0} repo: {1}'.format(name, debian_path))
 
             if (os.path.exists(ext_tar_debian_path)):
-                out("WARN: Debian dir comes with source package too. Overwriting")
+                out("WARN: Debian dir comes with source package too. " +
+                    "Overwriting")
                 shutil.rmtree(ext_tar_debian_path)
 
             shutil.copytree(debian_path, ext_tar_debian_path)
@@ -367,12 +400,13 @@ class Project:
         if os.path.isdir(ext_tar_debian_path):
             out("WARN: Debian dir is distributed with the source package")
         else:
-            #no debian config folder exists -> create one and fail
+            # No debian config folder exists -> create one and fail
             sh(['dh_make', '-f', tar_file], cwd=ext_tar_path)
             build_pkg_debian_path = os.path.join(self.build_pkg_path, 'debian')
             shutil.copytree(ext_tar_debian_path, build_pkg_debian_path)
 
-            out("ERROR: Please update the debian configs at {0}".format(build_pkg_debian_path))
+            out("ERROR: Please update the debian configs at {0}".format(
+                build_pkg_debian_path))
             sys.exit(1)
 
     # Finds the distributable tar.gz archive created by the make dist rule.
@@ -383,7 +417,8 @@ class Project:
     # Returns None on failure
     def find_dist_tgz(self):
         tgzs = os.listdir(self.build_path)
-        tgzs = [ tgz for tgz in tgzs if tgz.endswith('.tar.gz') or tgz.endswith('.tar.xz') ]
+        tgzs = [tgz for tgz in tgzs if tgz.endswith('.tar.gz') or
+                tgz.endswith('.tar.xz')]
 
         dist_file = None
         if len(tgzs) == 0:
@@ -421,16 +456,18 @@ class Project:
 
         dist_file = self.find_dist_tgz()
 
-        if dist_file == None:
+        if dist_file is None:
             out("ERROR: Could not find distributable package")
             sys.exit(1)
 
-        m = re.match('(^.*-[^-]*)\.(tar\.(?:gz|xz))$', dist_file, re.I)
+        m = re.match(r'(^.*-[^-]*)\.(tar\.(?:gz|xz))$', dist_file, re.I)
         if not m:
-            out('ERROR: could not parse the filename of an archive \'{0}\''.format(dist_file))
+            out('ERROR: could not parse the filename of ' +
+                'an archive \'{0}\''.format(dist_file))
             sys.exit(1)
 
-        base,version,deb_version = self.extract_changelog_version(self.find_debian_folder())
+        base, version, _ = \
+            self.extract_changelog_version(self.find_debian_folder())
         tar_base = m.group(1)
         ext = m.group(2)
         dist_file = os.path.join(self.build_path, dist_file)
@@ -439,12 +476,13 @@ class Project:
     def make_distributable_git_archive(self):
         out('Using git packager')
 
-        base,version,deb_version = self.extract_changelog_version(self.find_debian_folder())
+        base, version, _ = \
+            self.extract_changelog_version(self.find_debian_folder())
         tar_base = base + '-' + version
         dist_file = tar_base + '.tar.gz'
         sh(['git', 'archive', '--worktree-attributes',
-           '--prefix=\"' + tar_base + '/\"', 'HEAD', '--format=tar.gz',
-           '-o', 'dist_file'],
+            '--prefix=' + tar_base + '/', 'HEAD', '--format=tar.gz',
+            '-o', dist_file],
            cwd=self.code_path)
 
         dist_file = os.path.join(self.code_path, dist_file)
@@ -452,7 +490,7 @@ class Project:
 
     # Checks the project makefile for dist target
     def does_makefile_contain_dist_target(self):
-        f = open(self.code_path + "/Makefile")
+        f = open(os.path.join(self.code_path, "Makefile"))
         for l in f:
             if l.startswith("dist:"):
                 return True
@@ -460,7 +498,7 @@ class Project:
 
     def make_distributable(self):
 
-        #make a distributable archive
+        # Make a distributable archive
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
             return self.make_distributable_make_dist()
 
@@ -478,66 +516,69 @@ class Project:
     def package(self, do_source=False):
         out('Packaging project \'{0}\''.format(self.proj_name))
 
-        (base,version,tar_base,ext,dist_file) = self.make_distributable()
+        base, version, tar_base, ext, dist_file = self.make_distributable()
 
         out('File: {0}'.format(dist_file))
         out('Name: {0}; version: {1}'.format(base, version))
         out('Tar-dir: {0}'.format(tar_base))
 
-        self.build_pkgver_path = self.build_pkg_path + '/' + version
-        tar_file = self.build_pkgver_path + '/' + base + '_' + version + '.orig.' + ext
-        tar_path = self.build_pkgver_path + '/' + tar_base
+        self.build_pkgver_path = os.path.join(self.build_pkg_path, version)
+        tar_file = '{0}/{1}_{2}.orig.{3}'.format(self.build_pkgver_path, base,
+                                                 version, ext)
+        tar_path = os.path.join(self.build_pkgver_path, tar_base)
 
         # create a clean build dir
         if os.path.isdir(self.build_pkgver_path):
             shutil.rmtree(self.build_pkgver_path)
         os.makedirs(self.build_pkgver_path)
 
-        #move the distributable to the destination directory and cleanly extract it
+        # Move the distributable to the destination directory and cleanly
+        # extract it
         shutil.move(dist_file, tar_file)
         sh(['tar', '-xf', tar_file, '-C', self.build_pkgver_path],
            cwd=self.build_pkgver_path)
 
-        #check if successful
+        # Check if successful
         if not os.path.isdir(tar_path):
             out("ERROR: Failed to extract distributable archive to " + tar_path)
             sys.exit(1)
 
-        # import debian config folder
+        # Import debian config folder
         self.import_debian_dir(tar_file, tar_path)
 
-        #make debian package
+        # Make debian package
         self.debuild(tar_path, do_source)
 
     # Returns arguments for dpkg package signing utility
-    def get_key_arg(self):
-        if (debian_sign_key == None):
-            return ' -us -uc'
-        else:
-            return ' -k' + debian_sign_key
+    def get_key_args(self):
+        if debian_sign_key is None:
+            return ['-us, -uc']
+        return ['-k' + debian_sign_key]
 
     # Runs debuild in the tar_path directory
     def debuild(self, tar_path, do_source):
         global debian_sign_key
 
-        key_arg = self.get_key_arg()
+        key_args = self.get_key_args()
 
-        if (do_source == True):
-            r = sh(['debuild', '-eDEB_BUILD_OPTIONS="parallel=8"',
-                    '--no-lintian', '-S', '-sa', key_arg],
-                    cwd=tar_path)
-            if r != 0:
-                out("ERROR: Building project "+ self.proj_name + " failed")
-                sys.exit(1)
-        else:
-            r = sh(['debuild', '-eDEB_BUILD_OPTIONS="parallel=8"',
-                    '--no-lintian',
-                    '--build-hook=' + self.paths.copy_build_files_path +
-                        ' ' + self.build_path,
-                    '-sa', key_arg],
+        if do_source is True:
+            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel=8',
+                    '--no-lintian', '-S', '-sa'] + key_args,
                    cwd=tar_path)
             if r != 0:
-                out("ERROR: Building project "+ self.proj_name + " failed")
+                out("ERROR: Building project {0} failed".format(self.proj_name))
+                sys.exit(1)
+        else:
+            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel=8',
+                    '--no-lintian',
+                    '--build-hook=\"{0} {1}\"'.format(
+                        self.paths.copy_build_files_path,
+                        self.build_path
+                    ),
+                    '-sa'] + key_args,
+                   cwd=tar_path)
+            if r != 0:
+                out("ERROR: Building project {0} failed".format(self.proj_name))
                 sys.exit(1)
 
     def clean_path(self, path):
@@ -557,22 +598,25 @@ class Project:
 
         # check is deb_dir exists
         if not os.path.isdir(deb_dir):
-            out("ERROR: No debian directory for project \'{0}\'".format(self.proj_name))
+            out("ERROR: No debian directory for project \'{0}\'".format(
+                self.proj_name))
             sys.exit(1)
 
         (name, version, deb_version) = self.extract_changelog_version(deb_dir)
 
-        self.build_pkgver_path = self.build_pkg_path + '/' + version
+        self.build_pkgver_path = os.path.join(self.build_pkg_path, version)
 
         build_path = self.build_pkgver_path
         src_build_path = build_path + '_source'
 
-        key_arg = self.get_key_arg()
+        key_args = self.get_key_args()
 
         if do_source or use_pbuilder:
             self.clean_path(src_build_path)
 
-            orig_tars = glob.glob(os.path.join(self.code_path, '../{0}_{1}.orig.tar.*'.format(name, version)))
+            orig_tars = glob.glob(os.path.join(
+                self.code_path,
+                '../{0}_{1}.orig.tar.*'.format(name, version)))
             no_repo = len(orig_tars) > 0
 
             dsc_filename = self.compute_dsc_filename(name, version, deb_version)
@@ -584,7 +628,7 @@ class Project:
             else:
                 sh(['gbp', 'buildpackage', '--git-pristine-tar',
                     '--git-export-dir=' + src_build_path,
-                    '-S', '-sa', key_arg], cwd=self.code_path)
+                    '-S', '-sa'] + key_args, cwd=self.code_path)
                 dsc_path = os.path.join(src_build_path, dsc_filename)
 
             if use_pbuilder:
@@ -598,17 +642,18 @@ class Project:
                 sh(['sudo', 'pbuilder', 'build',
                     '--buildplace', self.paths.pbuilder_workdir_path,
                     '--basetgz', self.paths.pbuilder_tgz,
-                    '--mirror', self.paths.pbuilder_mirror,
-                    get_pbuilder_othermirror_opt(self.paths.pbuilder_othermirror),
-                    '--aptcache ' + self.paths.pbuilder_cache_path +
-                    '--components main',
+                    '--mirror', self.paths.pbuilder_mirror
+                    ] + get_pbuilder_othermirror_opt(
+                        self.paths.pbuilder_othermirror) + [
+                    '--aptcache', self.paths.pbuilder_cache_path,
+                    '--components', 'main',
                     '--buildresult', build_path,
                     dsc_path], cwd=self.paths.build_pbuilder_path)
 
         else:
             self.clean_path(build_path)
             sh(['gbp', 'buildpackage', '--git-pristine-tar',
-                '--git-export-dir=', build_path, '-sa', key_arg],
+                '--git-export-dir=', build_path, '-sa'] + key_args,
                cwd=self.code_path)
 
     def get_latest_pkgver(self):
@@ -621,18 +666,18 @@ class Project:
         return max(versions, key=os.path.getmtime)
 
     def install(self):
-        #install the package(s)
-        if self.build_pkgver_path == None:
+        # Install the package(s)
+        if self.build_pkgver_path is None:
             self.build_pkgver_path = self.get_latest_pkgver()
 
         # TODO: switch to fnmatch
         sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=self.build_pkgver_path)
 
     def debinstall(self):
-        if self.build_pkgver_path == None:
+        if self.build_pkgver_path is None:
             self.build_pkgver_path = self.get_latest_pkgver()
 
-        #install the package(s)
+        # Install the package(s)
         debs = os.listdir(self.build_pkgver_path)
         for deb in debs:
             if deb.endswith('.deb'):
@@ -640,7 +685,8 @@ class Project:
                                 os.path.join(self.paths.archive_path, deb))
         sh(['./reload'], cwd=self.paths.archive_path)
 
-#shows the available options to the stderr
+
+# Shows the available options to the stderr
 def show_help():
     sys.stderr.write("""
 Usage:
@@ -691,9 +737,11 @@ Options:
 
  --help  - displays this text
  """)
-    #indentation
+    # Indentation
 
-projects_to_build=[]
+
+projects_to_build = []
+
 
 def get_projects_in_dir(path, filename):
     if not os.path.isdir(path):
@@ -711,12 +759,11 @@ def get_projects_in_dir(path, filename):
             if not os.path.isdir(child_debian_path):
                 continue
 
-            debian_projects += [ (child_path, filename + '_' + child_fn) ]
+            debian_projects += [(child_path, filename + '_' + child_fn)]
 
         return debian_projects
-    else:
+    return [(path, filename)]
 
-        return [ (path, filename) ]
 
 def get_available_projects(dirs):
     # get the list of available projects
@@ -724,7 +771,7 @@ def get_available_projects(dirs):
     for d in dirs:
         try:
             project_fns = os.listdir(d)
-        except:
+        except Exception:
             continue
 
         for fn in project_fns:
@@ -733,28 +780,31 @@ def get_available_projects(dirs):
 
     return available_projects
 
+
 def print_available_projects(project_dirs, deb_project_dirs):
     out("Available projects: ")
-    for d,p in get_available_projects(project_dirs):
+    for d, p in get_available_projects(project_dirs):
         out('\'{0}\' in directory \'{1}\''.format(p, d))
 
     out("")
     out("Available projects for pristine builds:")
-    for d,p in get_available_projects(deb_project_dirs):
+    for d, p in get_available_projects(deb_project_dirs):
         out('\'{0}\' in directory \'{1}\''.format(p, d))
 
-ACTION_CLEAN=1
-ACTION_FULL_CLEAN=2
-ACTION_BUILD=3
-ACTION_PACKAGE=4
-ACTION_PACKAGE_SOURCE=5
-ACTION_INSTALL=6
-ACTION_REINSTALL=7
-ACTION_DEBINSTALL=8
-ACTION_DEBREINSTALL=9
 
-PBUILDER_CREATE=1
-PBUILDER_UPDATE=2
+ACTION_CLEAN = 1
+ACTION_FULL_CLEAN = 2
+ACTION_BUILD = 3
+ACTION_PACKAGE = 4
+ACTION_PACKAGE_SOURCE = 5
+ACTION_INSTALL = 6
+ACTION_REINSTALL = 7
+ACTION_DEBINSTALL = 8
+ACTION_DEBREINSTALL = 9
+
+PBUILDER_CREATE = 1
+PBUILDER_UPDATE = 2
+
 
 def main():
     paths = PathConf()
@@ -764,7 +814,7 @@ def main():
         print_available_projects(paths.project_dirs, paths.deb_project_dirs)
         sys.exit(1)
 
-    action=None
+    action = None
     do_check = True
     pristine = False
     use_pbuilder = False
@@ -773,37 +823,37 @@ def main():
     sys.argv.pop(0)
     args = iter(sys.argv)
     for arg in args:
-        if (arg=='-c' or arg=='--clean'):
+        if (arg == '-c' or arg == '--clean'):
             action = ACTION_CLEAN
-        elif (arg=='-f' or arg=='--full_clean'):
+        elif (arg == '-f' or arg == '--full_clean'):
             action = ACTION_FULL_CLEAN
-        elif (arg=='-b' or arg=='--build'):
+        elif (arg == '-b' or arg == '--build'):
             action = ACTION_BUILD
-        elif (arg=='-p' or arg=='--package'):
+        elif (arg == '-p' or arg == '--package'):
             action = ACTION_PACKAGE
-        elif (arg=='-s' or arg=='--package_source'):
+        elif (arg == '-s' or arg == '--package_source'):
             action = ACTION_PACKAGE_SOURCE
-        elif (arg=='-i' or arg=='--install'):
+        elif (arg == '-i' or arg == '--install'):
             action = ACTION_INSTALL
-        elif (arg=='-I' or arg=='--reinstall'):
+        elif (arg == '-I' or arg == '--reinstall'):
             action = ACTION_REINSTALL
-        elif (arg=='-d' or arg=='--debinstall'):
+        elif (arg == '-d' or arg == '--debinstall'):
             action = ACTION_DEBINSTALL
-        elif (arg=='-D' or arg=='--debreinstall'):
+        elif (arg == '-D' or arg == '--debreinstall'):
             action = ACTION_DEBREINSTALL
-        elif (arg=='-n' or arg=='--nocheck'):
+        elif (arg == '-n' or arg == '--nocheck'):
             do_check = False
-        elif arg=='--pristine':
+        elif arg == '--pristine':
             pristine = True
-        elif arg=='--use-pbuilder':
+        elif arg == '--use-pbuilder':
             use_pbuilder = True
-        elif arg=='--create-pbuilder':
+        elif arg == '--create-pbuilder':
             pbuilder_action = PBUILDER_CREATE
-        elif arg=='--update-pbuilder':
+        elif arg == '--update-pbuilder':
             pbuilder_action = PBUILDER_UPDATE
-        elif arg=='--pbuilder-dist':
+        elif arg == '--pbuilder-dist':
             paths.set_pbuilder_dist(next(args))
-        elif (arg=='--help'):
+        elif arg == '--help':
             show_help()
             sys.exit(1)
         else:
@@ -813,7 +863,7 @@ def main():
                 out("Ignored option: {0}".format(arg))
 
     if pbuilder_action:
-        if pristine or action != None:
+        if pristine or action is not None:
             out("ERROR: --create-pbuilder must not be used along with any "
                 "other options")
             sys.exit(1)
@@ -825,8 +875,8 @@ def main():
         os.makedirs(paths.build_pbuilder_path, exist_ok=True)
 
         actions = {
-            PBUILDER_CREATE : 'create',
-            PBUILDER_UPDATE : 'update'
+            PBUILDER_CREATE: 'create',
+            PBUILDER_UPDATE: 'update'
         }
 
         sh(['sudo', 'pbuilder', actions[pbuilder_action],
@@ -843,7 +893,7 @@ def main():
         sys.exit(0)
 
     if pristine:
-        if action in [ ACTION_CLEAN, ACTION_FULL_CLEAN, ACTION_BUILD]:
+        if action in [ACTION_CLEAN, ACTION_FULL_CLEAN, ACTION_BUILD]:
             out("ERROR: --pristine must not be used along with --clean, "
                 "--full_clean and --build")
             sys.exit(1)
@@ -853,12 +903,12 @@ def main():
     # check received projects
     checked_projects = []
 
-    ident=None
+    ident = None
     available_projects = get_available_projects(paths.project_dirs)
     for proj in projects_to_build:
-        for (d,p) in available_projects:
+        for d, p in available_projects:
             if p == proj:
-                ident=(d, p)
+                ident = (d, p)
                 break
             if p.find(proj) != -1:
                 checked_projects.append((d, p))
@@ -867,41 +917,41 @@ def main():
         os.makedirs(path, exist_ok=True)
 
     # if identical, ignore other
-    if ident != None:
+    if ident is not None:
         checked_projects = [(d, p)]
 
     if len(checked_projects) > 0:
         out("Found projects: ")
-        for d,p in checked_projects:
+        for d, p in checked_projects:
             out('\'{0}\' in directory \'{1}\''.format(p, d))
     else:
         out("ERROR: Project not found. Abort. ")
         sys.exit(1)
 
-    if (action == None):
+    if action is None:
         out("WARN: Action not specified. Defaulting to compile+package+install")
         action = ACTION_INSTALL
 
     # do work
-    if (action == ACTION_FULL_CLEAN):
-        for (d,p) in checked_projects:
+    if action == ACTION_FULL_CLEAN:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
             pr.reconf()
             pr.clean()
 
-    elif (action == ACTION_CLEAN):
-        for (d,p) in checked_projects:
+    elif action == ACTION_CLEAN:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
             pr.clean()
 
-    elif (action == ACTION_BUILD):
-        for (d,p) in checked_projects:
+    elif action == ACTION_BUILD:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
             pr.build()
             pr.check_build(do_check)
 
-    elif (action == ACTION_PACKAGE):
-        for (d,p) in checked_projects:
+    elif action == ACTION_PACKAGE:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
             if pristine:
                 pr.package_pristine(use_pbuilder=use_pbuilder)
@@ -910,8 +960,8 @@ def main():
                 pr.check_build(do_check)
                 pr.package()
 
-    elif (action == ACTION_PACKAGE_SOURCE):
-        for (d,p) in checked_projects:
+    elif action == ACTION_PACKAGE_SOURCE:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
             if pristine:
                 pr.package_pristine(do_source=True, use_pbuilder=use_pbuilder)
@@ -920,8 +970,8 @@ def main():
                 pr.check_build(do_check)
                 pr.package(do_source=True)
 
-    elif (action == ACTION_INSTALL):
-        for (d,p) in checked_projects:
+    elif action == ACTION_INSTALL:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
 
             if pristine:
@@ -935,15 +985,15 @@ def main():
             pr.install()
             pr.debinstall()
 
-    elif (action == ACTION_REINSTALL):
-        for (d,p) in checked_projects:
+    elif action == ACTION_REINSTALL:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
             out("Installing project: \'{0}\'".format(p))
             pr.install()
             pr.debinstall()
 
-    elif (action == ACTION_DEBINSTALL):
-        for (d,p) in checked_projects:
+    elif action == ACTION_DEBINSTALL:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
 
             if pristine:
@@ -956,8 +1006,8 @@ def main():
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
 
-    elif (action == ACTION_DEBREINSTALL):
-        for (d,p) in checked_projects:
+    elif action == ACTION_DEBREINSTALL:
+        for d, p in checked_projects:
             pr = Project(paths, p, d)
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
@@ -968,6 +1018,6 @@ def main():
 
     out("Success!")
 
+
 if __name__ == '__main__':
     main()
-

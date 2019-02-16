@@ -27,14 +27,14 @@ elif re.search(r'emerald', target_path):
 else:
     sys.exit(0)
 
-print("ZZZ: " + target_path)
-print("ZZZ: " + src_path)
+print("Copying from: " + target_path)
+print("Coping to:    " + src_path)
 
 obj_matches = []
 dep_matches = []
 dir_matches = []
 for root, dirnames, filenames in os.walk(src_path):
-    root = root.replace(src_path, "", 1) # relative path
+    root = root.replace(src_path, "", 1)  # relative path
     root = root.lstrip('/')
     for fn in fnmatch.filter(filenames, '*.o'):
         obj_matches.append(os.path.join(root, fn))
@@ -45,22 +45,22 @@ for root, dirnames, filenames in os.walk(src_path):
     for dirc in dirnames:
         dir_matches.append(os.path.join(root, dirc))
 
-#create .dirstamp files
+# create .dirstamp files
 for dirc in dir_matches:
     dirc = os.path.join(target_path, dirc)
     try:
         os.makedirs(dirc)
-    except:
+    except Exception:
         pass
-    #open(os.path.join(dirc, '.dirstamp'), 'a').close()
+    # open(os.path.join(dirc, '.dirstamp'), 'a').close()
 
-#create dummy dependency files
+# create dummy dependency files
 for fn in dep_matches:
     shutil.copyfile(os.path.join(src_path, fn),
                     os.path.join(target_path, fn))
     os.utime(os.path.join(target_path, fn), (time.time() + 1040,
                                              time.time() + 1040))
-#copy objects
+# copy objects
 for fn in obj_matches:
     print(fn)
     shutil.copyfile(os.path.join(src_path, fn),
