@@ -511,11 +511,8 @@ class Project:
             shutil.rmtree(path)
         os.makedirs(path)
 
-    def find_dsc_in_path(self, path):
-        dscs = glob.glob(path + "/*.dsc")
-        if len(dscs) == 0:
-            return None
-        return dscs[0]
+    def compute_dsc_filename(self, name, version, deb_version):
+        return '{0}_{1}-{2}.dsc'.format(name, version, deb_version)
 
     def package_pristine(self, do_source=False, use_pbuilder=False):
         if not use_pbuilder:
@@ -545,11 +542,13 @@ class Project:
 
             if use_pbuilder:
                 self.clean_path(build_path)
-                dsc = self.find_dsc_in_path(src_build_path)
-                if not dsc:
+                dsc_path = os.path.join(src_build_path,
+                                        self.compute_dsc_filename(name, version, deb_version))
+
+                out("Using dsc: \'{0}\'".format(dsc_path))
+                if not os.path.isfile(dsc_path):
                     out("ERROR: Could not find .dsc file")
                     sys.exit(1)
-                out("Using dsc:  " + dsc)
 
                 sh('sudo pbuilder build ' +
                     ' --buildplace ' + self.paths.pbuilder_workdir_path +
@@ -558,7 +557,7 @@ class Project:
                     ' --aptcache ' + self.paths.pbuilder_cache_path +
                     ' --components main ' +
                     ' --buildresult ' + build_path +
-                    ' ' + dsc, cwd=self.paths.build_pbuilder_path)
+                    ' ' + dsc_path, cwd=self.paths.build_pbuilder_path)
 
         else:
             self.clean_path(build_path)
