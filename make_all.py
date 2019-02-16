@@ -84,7 +84,10 @@ def out(s):
     sys.stdout.flush()
 
 def sh(cmd, cwd):
-    code = subprocess.call(cmd, shell=True, cwd=cwd)
+    if isinstance(cmd, list):
+        code = subprocess.call(cmd, cwd=cwd)
+    else:
+        code = subprocess.call(cmd, shell=True, cwd=cwd)
     if code != 0:
         out('ERROR: Command \'{0}\' returned code {1}'.format(cmd, code))
         sys.exit(code)
@@ -184,7 +187,8 @@ class Project:
 
             #rerun autoconf if needed
             if c_mtime < ac_mtime:
-                sh('autoconf; automake', cwd=self.code_path)
+                sh(['autoconf'], cwd=self.code_path)
+                sh(['automake'], cwd=self.code_path)
                 c_mtime = os.path.getmtime(configure_path)
 
             #reconfigure if needed
@@ -192,24 +196,26 @@ class Project:
             if build_mtime < c_mtime:
                 shutil.rmtree(self.build_path)
                 os.makedirs(self.build_path)
-                sh(configure_path + ' ' + add_configure_args(self.proj_name),
+                sh([configure_path] + get_configure_args(self.proj_name),
                    cwd=self.build_path)
 
             #build
             out('Building project \'{0}\''.format(self.proj_name))
-            sh('make all -j{0}'.format(num_processors), cwd=self.build_path)
+            sh(['make', 'all', '-j{0}'.format(num_processors)],
+               cwd=self.build_path)
 
         elif self.build_type == BUILD_TYPE_CMAKE:
             # cmake project
 
             os.makedirs(self.build_path, exist_ok=True)
 
-            cmd = 'cmake \'{0}\''.format(self.code_path)
+            cmd = ['cmake', self.code_path]
             out(cmd)
             sh(cmd, cwd=self.build_path)
 
             out('Building project \'{0}\''.format(self.proj_name))
-            sh('make all -j{0}'.format(num_processors), cwd=self.build_path)
+            sh(['make', 'all', '-j{0}'.format(num_processors)],
+               cwd=self.build_path)
 
         elif self.build_type == BUILD_TYPE_QMAKE:
             # qmake project
@@ -221,12 +227,14 @@ class Project:
             # work around the issues with qmake out-of-source builds
             # In short, only directories at the same level are supported
             code_dir = '.' + self.proj_name + '_codedir'
-            sh('ln -fs \"' + self.code_path + '\" \"../' + code_dir + '\" ', cwd=self.paths.build_path)
+            sh(['ln', '-fs', self.code_path, '../' + code_dir],
+               cwd=self.paths.build_path)
 
-            sh('qmake \"../{0}\"'.format(code_dir) , cwd=self.paths.build_path)
+            sh(['qmake', '../{0}'.format(code_dir)], cwd=self.paths.build_path)
 
             out('Building project \'{0}\''.format(self.proj_name))
-            sh('make all -j{0}'.format(num_processors), cwd=self.paths.build_path)
+            sh(['make', 'all', '-j{0}'.format(num_processors)],
+               cwd=self.paths.build_path)
 
         elif self.build_type == BUILD_TYPE_MAKEFILE:
             #simple makefile project. Rebuild everything on any update in the source tree
@@ -246,7 +254,8 @@ class Project:
                 shutil.rmtree(self.build_path)
                 shutil.copytree(self.code_path, self.build_path)
 
-                sh('make all -j{0}'.format(num_processors), cwd=self.build_path)
+                sh(['make', 'all', '-j{0}'.format(num_processors)],
+                   cwd=self.build_path)
         else:
             # No makefile -- nothing to build, only package. We expect that
             # debian/rules will have enough information
@@ -271,9 +280,9 @@ class Project:
         out('Reconfiguring project \'{0}\''.format(self.proj_name))
 
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
-            sh('autoreconf', cwd=self.code_path)
+            sh(['autoreconf'], cwd=self.code_path)
         elif self.build_type == BUILD_TYPE_CMAKE:
-            sh('cmake .', cwd=self.code_path)
+            sh(['cmake', '.'], cwd=self.code_path)
 
     def check_build(self, do_check=True):
         if not do_check:
@@ -287,13 +296,14 @@ class Project:
             if os.path.exists(mkpath):
                 mk = open(mkpath).read()
                 if re.search(r'\bcheck:', mk):
-                    sh('make check -j{0}'.format(num_processors), cwd=self.build_path)
+                    sh(['make', 'check', '-j{0}'.format(num_processors)],
+                       cwd=self.build_path)
                 else:
                     out('... (no check rule)')
             else:
                 out('... (no Makefile)')
 
-            #sh('make distcheck', cwd=self.build_path)
+            # sh(['make', 'distcheck'], cwd=self.build_path)
         else:
             out('... (no Makefile)')
 
@@ -358,7 +368,7 @@ class Project:
             out("WARN: Debian dir is distributed with the source package")
         else:
             #no debian config folder exists -> create one and fail
-            sh('dh_make -f ' + tar_file, cwd=ext_tar_path)
+            sh(['dh_make', '-f', tar_file], cwd=ext_tar_path)
             build_pkg_debian_path = os.path.join(self.build_pkg_path, 'debian')
             shutil.copytree(ext_tar_debian_path, build_pkg_debian_path)
 
@@ -407,7 +417,7 @@ class Project:
     '''
     def make_distributable_make_dist(self):
         out('Using make dist packager')
-        sh('make dist', cwd=self.build_path)
+        sh(['make', 'dist'], cwd=self.build_path)
 
         dist_file = self.find_dist_tgz()
 
@@ -432,9 +442,10 @@ class Project:
         base,version,deb_version = self.extract_changelog_version(self.find_debian_folder())
         tar_base = base + '-' + version
         dist_file = tar_base + '.tar.gz'
-        sh('git archive --worktree-attributes --prefix=\"' + tar_base
-            + '/' + '\" HEAD --format=tar.gz > \"' + dist_file + '\"',
-            cwd=self.code_path)
+        sh(['git', 'archive', '--worktree-attributes',
+           '--prefix=\"' + tar_base + '/\"', 'HEAD', '--format=tar.gz',
+           '-o', 'dist_file'],
+           cwd=self.code_path)
 
         dist_file = os.path.join(self.code_path, dist_file)
         return (base, version, tar_base, 'tar.gz', dist_file)
@@ -484,7 +495,8 @@ class Project:
 
         #move the distributable to the destination directory and cleanly extract it
         shutil.move(dist_file, tar_file)
-        sh('tar -xf ' + tar_file + ' -C ' + self.build_pkgver_path, cwd=self.build_pkgver_path)
+        sh(['tar', '-xf', tar_file, '-C', self.build_pkgver_path],
+           cwd=self.build_pkgver_path)
 
         #check if successful
         if not os.path.isdir(tar_path):
@@ -511,14 +523,19 @@ class Project:
         key_arg = self.get_key_arg()
 
         if (do_source == True):
-            r = sh('debuild -eDEB_BUILD_OPTIONS="parallel=8" --no-lintian -S -sa ' + key_arg,
+            r = sh(['debuild', '-eDEB_BUILD_OPTIONS="parallel=8"',
+                    '--no-lintian', '-S', '-sa', key_arg],
                     cwd=tar_path)
             if r != 0:
                 out("ERROR: Building project "+ self.proj_name + " failed")
                 sys.exit(1)
         else:
-            r = sh('debuild -eDEB_BUILD_OPTIONS="parallel=8" --no-lintian --build-hook="' + self.paths.copy_build_files_path + ' ' + self.build_path +'" -sa ' + key_arg,
-                    cwd=tar_path)
+            r = sh(['debuild', '-eDEB_BUILD_OPTIONS="parallel=8"',
+                    '--no-lintian',
+                    '--build-hook=' + self.paths.copy_build_files_path +
+                        ' ' + self.build_path,
+                    '-sa', key_arg],
+                   cwd=tar_path)
             if r != 0:
                 out("ERROR: Building project "+ self.proj_name + " failed")
                 sys.exit(1)
@@ -562,11 +579,12 @@ class Project:
 
             if no_repo:
                 out('Packaging bare sources without VCS')
-                sh('dpkg-source -b .', cwd=self.code_path)
+                sh(['dpkg-source', '-b', '.'], cwd=self.code_path)
                 dsc_path = os.path.join(self.code_path, '..', dsc_filename)
             else:
-                sh('gbp buildpackage --git-pristine-tar --git-export-dir="' +
-                    src_build_path + '" -S -sa ' + key_arg, cwd=self.code_path)
+                sh(['gbp', 'buildpackage', '--git-pristine-tar',
+                    '--git-export-dir=' + src_build_path,
+                    '-S', '-sa', key_arg], cwd=self.code_path)
                 dsc_path = os.path.join(src_build_path, dsc_filename)
 
             if use_pbuilder:
@@ -577,20 +595,21 @@ class Project:
                     out("ERROR: Could not find .dsc file")
                     sys.exit(1)
 
-                sh('sudo pbuilder build ' +
-                    ' --buildplace ' + self.paths.pbuilder_workdir_path +
-                    ' --basetgz ' + self.paths.pbuilder_tgz +
-                    ' --mirror ' + self.paths.pbuilder_mirror +
-                    get_pbuilder_othermirror_opt(self.paths.pbuilder_othermirror) +
-                    ' --aptcache ' + self.paths.pbuilder_cache_path +
-                    ' --components main ' +
-                    ' --buildresult ' + build_path +
-                    ' ' + dsc_path, cwd=self.paths.build_pbuilder_path)
+                sh(['sudo', 'pbuilder', 'build',
+                    '--buildplace', self.paths.pbuilder_workdir_path,
+                    '--basetgz', self.paths.pbuilder_tgz,
+                    '--mirror', self.paths.pbuilder_mirror,
+                    get_pbuilder_othermirror_opt(self.paths.pbuilder_othermirror),
+                    '--aptcache ' + self.paths.pbuilder_cache_path +
+                    '--components main',
+                    '--buildresult', build_path,
+                    dsc_path], cwd=self.paths.build_pbuilder_path)
 
         else:
             self.clean_path(build_path)
-            sh('gbp buildpackage --git-pristine-tar --git-export-dir="' +
-                build_path + '" -sa ' + key_arg, cwd=self.code_path)
+            sh(['gbp', 'buildpackage', '--git-pristine-tar',
+                '--git-export-dir=', build_path, '-sa', key_arg],
+               cwd=self.code_path)
 
     def get_latest_pkgver(self):
         versions = []
@@ -606,6 +625,7 @@ class Project:
         if self.build_pkgver_path == None:
             self.build_pkgver_path = self.get_latest_pkgver()
 
+        # TODO: switch to fnmatch
         sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=self.build_pkgver_path)
 
     def debinstall(self):
@@ -618,7 +638,7 @@ class Project:
             if deb.endswith('.deb'):
                 shutil.copyfile(os.path.join(self.build_pkgver_path, deb),
                                 os.path.join(self.paths.archive_path, deb))
-        sh('./reload', cwd=self.paths.archive_path)
+        sh(['./reload'], cwd=self.paths.archive_path)
 
 #shows the available options to the stderr
 def show_help():
@@ -809,17 +829,17 @@ def main():
             PBUILDER_UPDATE : 'update'
         }
 
-        sh('sudo pbuilder ' + actions[pbuilder_action] +
-        ' --distribution ' + paths.pbuilder_distribution +
-        ' --debootstrapopts --variant=buildd' +
-        ' --debootstrapopts --keyring' +
-        ' --debootstrapopts /etc/apt/trusted.gpg' +
-        ' --buildplace ' + paths.pbuilder_workdir_path +
-        ' --basetgz ' + paths.pbuilder_tgz +
-        ' --mirror ' + paths.pbuilder_mirror +
-        get_pbuilder_othermirror_opt(paths.pbuilder_othermirror) +
-        ' --aptcache ' + paths.pbuilder_cache_path +
-        ' --components main ', cwd=paths.build_pbuilder_path)
+        sh(['sudo', 'pbuilder', actions[pbuilder_action],
+            '--distribution', paths.pbuilder_distribution,
+            '--debootstrapopts', '--variant=buildd',
+            '--debootstrapopts', '--keyring',
+            '--debootstrapopts', '/etc/apt/trusted.gpg',
+            '--buildplace', paths.pbuilder_workdir_path,
+            '--basetgz', paths.pbuilder_tgz,
+            '--mirror', paths.pbuilder_mirror,
+            get_pbuilder_othermirror_opt(paths.pbuilder_othermirror),
+            '--aptcache', paths.pbuilder_cache_path,
+            '--components', 'main'], cwd=paths.build_pbuilder_path)
         sys.exit(0)
 
     if pristine:
