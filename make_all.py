@@ -342,6 +342,9 @@ class Project:
         ]
 
         for name, debian_path in candidate_paths:
+            if not os.path.isdir(debian_path):
+                continue
+
             out('Debian dir in {0} repo: {1}'.format(name, debian_path))
 
             if (os.path.exists(ext_tar_debian_path)):
