@@ -502,16 +502,14 @@ class Project:
         if self.build_type == BUILD_TYPE_AUTOTOOLS:
             return self.make_distributable_make_dist()
 
-        elif (self.build_type == BUILD_TYPE_MAKEFILE and
-              self.does_makefile_contain_dist_target()):
+        if self.build_type == BUILD_TYPE_MAKEFILE and self.does_makefile_contain_dist_target():
             return self.make_distributable_make_dist()
 
-        elif self.vcs_type == VCS_TYPE_GIT:
+        if self.vcs_type == VCS_TYPE_GIT:
             return self.make_distributable_git_archive()
 
-        else:
-            out('ERROR: VCS and project type not supported')
-            sys.exit(1)
+        out('ERROR: VCS and project type not supported')
+        sys.exit(1)
 
     def package(self, do_source=False):
         out('Packaging project \'{0}\''.format(self.proj_name))
@@ -834,25 +832,25 @@ def main():
     sys.argv.pop(0)
     args = iter(sys.argv)
     for arg in args:
-        if (arg == '-c' or arg == '--clean'):
+        if arg in ('-c', '--clean'):
             action = ACTION_CLEAN
-        elif (arg == '-f' or arg == '--full_clean'):
+        elif arg in ('-f', '--full_clean'):
             action = ACTION_FULL_CLEAN
-        elif (arg == '-b' or arg == '--build'):
+        elif arg in ('-b', '--build'):
             action = ACTION_BUILD
-        elif (arg == '-p' or arg == '--package'):
+        elif arg in ('-p', '--package'):
             action = ACTION_PACKAGE
-        elif (arg == '-s' or arg == '--package_source'):
+        elif arg in ('-s', '--package_source'):
             action = ACTION_PACKAGE_SOURCE
-        elif (arg == '-i' or arg == '--install'):
+        elif arg in ('-i', '--install'):
             action = ACTION_INSTALL
-        elif (arg == '-I' or arg == '--reinstall'):
+        elif arg in ('-I', '--reinstall'):
             action = ACTION_REINSTALL
-        elif (arg == '-d' or arg == '--debinstall'):
+        elif arg in ('-d', '--debinstall'):
             action = ACTION_DEBINSTALL
-        elif (arg == '-D' or arg == '--debreinstall'):
+        elif arg in ('-D', '--debreinstall'):
             action = ACTION_DEBREINSTALL
-        elif (arg == '-n' or arg == '--nocheck'):
+        elif arg in ('-n', '--nocheck'):
             do_check = False
         elif arg == '--pristine':
             pristine = True
