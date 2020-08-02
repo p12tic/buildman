@@ -589,7 +589,7 @@ class Project:
     def compute_dsc_filename(self, name, version, deb_version):
         return '{0}_{1}-{2}.dsc'.format(name, version, deb_version)
 
-    def package_pristine(self, do_source=False, use_pbuilder=False):
+    def package_pristine(self, do_source=False, use_pbuilder=False, bare=False):
         if not use_pbuilder:
             out("Packaging pristine sources")
         else:
@@ -614,14 +614,20 @@ class Project:
         if do_source or use_pbuilder:
             self.clean_path(src_build_path)
 
-            orig_tars = glob.glob(os.path.join(
-                self.code_path,
-                '../{0}_{1}.orig.tar.*'.format(name, version)))
-            no_repo = len(orig_tars) > 0
-
             dsc_filename = self.compute_dsc_filename(name, version, deb_version)
 
-            if no_repo:
+            if bare:
+                filename_glob = '../{0}_{1}.orig.tar.*'.format(name, version)
+                orig_tars = glob.glob(os.path.join(self.code_path, filename_glob))
+
+                out('Found the following tags matching {}:'.format(filename_glob))
+                for path in orig_tars:
+                    out(path)
+
+                if len(orig_tars) == 0:
+                    out("ERROR: no original tars found and bare was requested")
+                    sys.exit(1)
+
                 out('Packaging bare sources without VCS')
                 sh(['dpkg-source', '-b', '.'], cwd=self.code_path)
                 dsc_path = os.path.join(self.code_path, '..', dsc_filename)
@@ -720,6 +726,10 @@ Options:
    a local repository
 
  --pristine - Package or install a pristine project. Must not be used
+   along the --build, --clean or --full_clean flags. The sources must be
+   in pristine-tar git repository.
+
+ --pristine-bare - Package or install a pristine project. Must not be used
    along the --build, --clean or --full_clean flags.
 
  --use-pbuilder - Uses pbuilder to package the project. --create-pbuilder
@@ -817,6 +827,7 @@ def main():
     action = None
     do_check = True
     pristine = False
+    pristine_bare = False
     use_pbuilder = False
     pbuilder_action = None
 
@@ -845,6 +856,9 @@ def main():
             do_check = False
         elif arg == '--pristine':
             pristine = True
+        elif arg == '--pristine-bare':
+            pristine = True
+            pristine_bare = True
         elif arg == '--use-pbuilder':
             use_pbuilder = True
         elif arg == '--create-pbuilder':
@@ -863,7 +877,7 @@ def main():
                 out("Ignored option: {0}".format(arg))
 
     if pbuilder_action:
-        if pristine or action is not None:
+        if pristine or pristine_bare or action is not None:
             out("ERROR: --create-pbuilder must not be used along with any "
                 "other options")
             sys.exit(1)
@@ -887,14 +901,14 @@ def main():
             '--buildplace', paths.pbuilder_workdir_path,
             '--basetgz', paths.pbuilder_tgz,
             '--mirror', paths.pbuilder_mirror,
-            get_pbuilder_othermirror_opt(paths.pbuilder_othermirror),
+            ] + get_pbuilder_othermirror_opt(paths.pbuilder_othermirror) + [
             '--aptcache', paths.pbuilder_cache_path,
             '--components', 'main'], cwd=paths.build_pbuilder_path)
         sys.exit(0)
 
     if pristine:
         if action in [ACTION_CLEAN, ACTION_FULL_CLEAN, ACTION_BUILD]:
-            out("ERROR: --pristine must not be used along with --clean, "
+            out("ERROR: --pristine and --pristine_bare must not be used along with --clean, "
                 "--full_clean and --build")
             sys.exit(1)
         paths.project_dirs = paths.deb_project_dirs
@@ -954,7 +968,7 @@ def main():
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             if pristine:
-                pr.package_pristine(use_pbuilder=use_pbuilder)
+                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare)
             else:
                 pr.build()
                 pr.check_build(do_check)
@@ -964,7 +978,7 @@ def main():
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             if pristine:
-                pr.package_pristine(do_source=True, use_pbuilder=use_pbuilder)
+                pr.package_pristine(do_source=True, use_pbuilder=use_pbuilder, bare=pristine_bare)
             else:
                 pr.build()
                 pr.check_build(do_check)
@@ -975,7 +989,7 @@ def main():
             pr = Project(paths, p, d)
 
             if pristine:
-                pr.package_pristine(use_pbuilder=use_pbuilder)
+                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare)
             else:
                 pr.build()
                 pr.check_build(do_check)
@@ -997,7 +1011,7 @@ def main():
             pr = Project(paths, p, d)
 
             if pristine:
-                pr.package_pristine(use_pbuilder=use_pbuilder)
+                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare)
             else:
                 pr.build()
                 pr.check_build(do_check)
