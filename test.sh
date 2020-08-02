@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
-flake8 --config=config/flake8rc *.py
-pylint --rcfile=config/pylintrc *.py
+flake8 -j$(nproc) *.py
+pylint -j$(nproc) *.py
