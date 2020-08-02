@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#    Copyright (C) 2011-2014  Povilas Kanapickas <povilas@radix.lt>
+#    Copyright (C) 2011-2020  Povilas Kanapickas <povilas@radix.lt>
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>
 
+import argparse
 import enum
 import json
 import os
@@ -720,66 +721,6 @@ class Project:
         sh(['./reload'], cwd=self.paths.archive_path)
 
 
-# Shows the available options to the stderr
-def show_help():
-    sys.stderr.write("""
-Usage:
-
-make_all.sh [options] [projects ...]
-
-Options:
-
- --build -b - builds the source tree
-
- --clean -n - cleans the build tree
-
- --full_clean -f - cleans the build tree and reconfigures the source
-   tree (if possible)
-
- --package -p - builds the source tree and creates a binary package
-
- --package_source -s - builds the source tree and creates a source
-   package
-
- --install -i - builds the source tree, creates a binary package and
-   installs it both to the system and to a local repository
-
- --reinstall -I - reintalls most recently built binary packages both
-   to the system and to a local repository.
-
- --debinstall -d - builds the source tree, creates a binary package
-   and installs it only to a local repository
-
- --debreinstall -D - reintalls most recently built binary packages to
-   a local repository
-
- --pristine - Package or install a pristine project. Must not be used
-   along the --build, --clean or --full_clean flags. The sources must be
-   in pristine-tar git repository.
-
- --pristine-bare - Package or install a pristine project. Must not be used
-   along the --build, --clean or --full_clean flags.
-
- --use-pbuilder - Uses pbuilder to package the project. --create-pbuilder
-   must be run before the first time this is called.
-
- --create-pbuilder - Creates a pbuilder environment. Must not be used with
-   any other options.
-
- --update-pbuilder - Updates the pbuilder environment. Must not be used with
-   any other options.
-
- --nocheck -n - does not check the package after building
-
- --pbuilder-dist <distribution> - sets the pbuilder distribution
-
- --reuse-build-files - reuses build files in packaging
-
- --help  - displays this text
- """)
-    # Indentation
-
-
 def get_projects_in_dir(path, filename):
     if not os.path.isdir(path):
         return []
@@ -858,54 +799,102 @@ def main():
     use_pbuilder = False
     pbuilder_action = None
     copy_build_files = False
-    projects_to_build = []
 
-    sys.argv.pop(0)
-    args = iter(sys.argv)
-    for arg in args:
-        if arg in ('-c', '--clean'):
-            action = ACTION_CLEAN
-        elif arg in ('-f', '--full_clean'):
-            action = ACTION_FULL_CLEAN
-        elif arg in ('-b', '--build'):
-            action = ACTION_BUILD
-        elif arg in ('-p', '--package'):
-            action = ACTION_PACKAGE
-        elif arg in ('-s', '--package_source'):
-            action = ACTION_PACKAGE_SOURCE
-        elif arg in ('-i', '--install'):
-            action = ACTION_INSTALL
-        elif arg in ('-I', '--reinstall'):
-            action = ACTION_REINSTALL
-        elif arg in ('-d', '--debinstall'):
-            action = ACTION_DEBINSTALL
-        elif arg in ('-D', '--debreinstall'):
-            action = ACTION_DEBREINSTALL
-        elif arg in ('-n', '--nocheck'):
-            do_check = False
-        elif arg == '--pristine':
-            pristine = True
-        elif arg == '--pristine-bare':
-            pristine = True
-            pristine_bare = True
-        elif arg == '--use-pbuilder':
-            use_pbuilder = True
-        elif arg == '--create-pbuilder':
-            pbuilder_action = PBUILDER_CREATE
-        elif arg == '--update-pbuilder':
-            pbuilder_action = PBUILDER_UPDATE
-        elif arg == '--pbuilder-dist':
-            paths.set_pbuilder_dist(next(args))
-        elif arg == '--reuse-build-files':
-            copy_build_files = True
-        elif arg == '--help':
-            show_help()
-            sys.exit(1)
-        else:
-            if not arg.startswith('-'):
-                projects_to_build.append(arg)
-            else:
-                out("Ignored option: {0}".format(arg))
+    parser = argparse.ArgumentParser(prog='make_all')
+    parser.add_argument('projects', type=str, nargs='*',
+                        help="Projects to build")
+    parser.add_argument('--build', action='store_true', default=False,
+                        help='Builds the source tree')
+    parser.add_argument('--clean', action='store_true', default=False,
+                        help='Cleans the source tree')
+    parser.add_argument('--full-clean', action='store_true', default=False,
+                        help='Cleans the source tree and reconfigures the source tree ' +
+                        '(if possible)')
+    parser.add_argument('--package', action='store_true', default=False,
+                        help='Builds the source tree and creates a binary package')
+    parser.add_argument('--package-source', action='store_true', default=False,
+                        help='Builds the source tree and creates a source package')
+    parser.add_argument('--install', action='store_true', default=False,
+                        help='Builds the source tree, creates a binary package and installs it ' +
+                        'into both the system and to the local repository')
+    parser.add_argument('--reinstall', action='store_true', default=False,
+                        help='Reinstalls most recently built binary packages both to the system ' +
+                        'and to the local repository')
+    parser.add_argument('--debinstall', action='store_true', default=False,
+                        help='Builds the source tree, creates a binary package and installs it ' +
+                        'into to the local repository')
+    parser.add_argument('--no-check', action='store_true', default=False,
+                        help='Disables tests after building a package')
+    parser.add_argument('--debreinstall', action='store_true', default=False,
+                        help='Reinstalls most recently built binary packages to the local ' +
+                        'repository')
+    parser.add_argument('--pristine', action='store_true', default=False,
+                        help='Enables pristine mode. Can only be used with --package, ' +
+                        '--package-source, --install, --reinstall, --debinstall, --debreinstall ' +
+                        'options')
+    parser.add_argument('--pristine-bare', action='store_true', default=False,
+                        help='Enables bare pristine mode. This is the same as --pristine except ' +
+                        'that bare tar.gz archives will be used as a source base. This option ' +
+                        'can only be used with --package, --package-source, --install, ' +
+                        '--reinstall, --debinstall, --debreinstall options')
+    parser.add_argument('--use-pbuilder', action='store_true', default=False,
+                        help='Enables pbuilder mode. Can only be enabled when --pristine or ' +
+                        '--pristine-bare options are enabled. --create-pbuilder must be executed ' +
+                        'at least once before using this option')
+    parser.add_argument('--create-pbuilder', action='store_true', default=False,
+                        help='Creates a pbuilder environment. Must not be used with any other ' +
+                        'build-related option. --pbuilder-dist selects the distribution')
+    parser.add_argument('--update-pbuilder', action='store_true', default=False,
+                        help='Updates a pbuilder environment. Must not be used with any other ' +
+                        'build-related option. --pbuilder-dist selects the distribution')
+    parser.add_argument('--pbuilder-dist', type=str, default=None,
+                        help='Selects the pbuilder distribution')
+    parser.add_argument('--reuse-build-files', action='store_true', default=False,
+                        help='Reuse build files in packaging')
+    args = parser.parse_args()
+
+    if args.build:
+        action = ACTION_BUILD
+    elif args.clean:
+        action = ACTION_CLEAN
+    elif args.full_clean:
+        action = ACTION_FULL_CLEAN
+    elif args.package:
+        action = ACTION_PACKAGE
+    elif args.package_source:
+        action = ACTION_PACKAGE_SOURCE
+    elif args.install:
+        action = ACTION_INSTALL
+    elif args.reinstall:
+        action = ACTION_REINSTALL
+    elif args.debinstall:
+        action = ACTION_DEBINSTALL
+    elif args.debreinstall:
+        action = ACTION_DEBREINSTALL
+
+    if args.no_check:
+        do_check = False
+    if args.pristine:
+        pristine = True
+    if args.pristine_bare:
+        pristine = True
+        pristine_bare = True
+
+    if args.use_pbuilder:
+        use_pbuilder = True
+
+    if args.create_pbuilder:
+        pbuilder_action = PBUILDER_CREATE
+    elif args.update_pbuilder:
+        pbuilder_action = PBUILDER_UPDATE
+
+    if args.pbuilder_dist is not None:
+        paths.set_pbuilder_dist(args.pbuilder_dist)
+
+    if args.reuse_build_files:
+        copy_build_files = True
+
+    projects_to_build = args.projects
 
     if pbuilder_action:
         if pristine or pristine_bare or action is not None:
