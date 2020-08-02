@@ -780,9 +780,6 @@ Options:
     # Indentation
 
 
-projects_to_build = []
-
-
 def get_projects_in_dir(path, filename):
     if not os.path.isdir(path):
         return []
@@ -861,6 +858,7 @@ def main():
     use_pbuilder = False
     pbuilder_action = None
     copy_build_files = False
+    projects_to_build = []
 
     sys.argv.pop(0)
     args = iter(sys.argv)
