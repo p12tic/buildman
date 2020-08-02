@@ -770,18 +770,21 @@ def print_available_projects(project_dirs, deb_project_dirs):
         out('\'{0}\' in directory \'{1}\''.format(p, d))
 
 
-ACTION_CLEAN = 1
-ACTION_FULL_CLEAN = 2
-ACTION_BUILD = 3
-ACTION_PACKAGE = 4
-ACTION_PACKAGE_SOURCE = 5
-ACTION_INSTALL = 6
-ACTION_REINSTALL = 7
-ACTION_DEBINSTALL = 8
-ACTION_DEBREINSTALL = 9
+class Action(enum.Enum):
+    CLEAN = 1
+    FULL_CLEAN = 2
+    BUILD = 3
+    PACKAGE = 4
+    PACKAGE_SOURCE = 5
+    INSTALL = 6
+    REINSTALL = 7
+    DEBINSTALL = 8
+    DEBREINSTALL = 9
 
-PBUILDER_CREATE = 1
-PBUILDER_UPDATE = 2
+
+class PbuilderAction(enum.Enum):
+    CREATE = 1
+    UPDATE = 2
 
 
 def main():
@@ -854,23 +857,23 @@ def main():
     args = parser.parse_args()
 
     if args.build:
-        action = ACTION_BUILD
+        action = Action.BUILD
     elif args.clean:
-        action = ACTION_CLEAN
+        action = Action.CLEAN
     elif args.full_clean:
-        action = ACTION_FULL_CLEAN
+        action = Action.FULL_CLEAN
     elif args.package:
-        action = ACTION_PACKAGE
+        action = Action.PACKAGE
     elif args.package_source:
-        action = ACTION_PACKAGE_SOURCE
+        action = Action.PACKAGE_SOURCE
     elif args.install:
-        action = ACTION_INSTALL
+        action = Action.INSTALL
     elif args.reinstall:
-        action = ACTION_REINSTALL
+        action = Action.REINSTALL
     elif args.debinstall:
-        action = ACTION_DEBINSTALL
+        action = Action.DEBINSTALL
     elif args.debreinstall:
-        action = ACTION_DEBREINSTALL
+        action = Action.DEBREINSTALL
 
     if args.no_check:
         do_check = False
@@ -884,9 +887,9 @@ def main():
         use_pbuilder = True
 
     if args.create_pbuilder:
-        pbuilder_action = PBUILDER_CREATE
+        pbuilder_action = PbuilderAction.CREATE
     elif args.update_pbuilder:
-        pbuilder_action = PBUILDER_UPDATE
+        pbuilder_action = PbuilderAction.UPDATE
 
     if args.pbuilder_dist is not None:
         paths.set_pbuilder_dist(args.pbuilder_dist)
@@ -896,7 +899,7 @@ def main():
 
     projects_to_build = args.projects
 
-    if pbuilder_action:
+    if pbuilder_action is not None:
         if pristine or pristine_bare or action is not None:
             out("ERROR: --create-pbuilder must not be used along with any "
                 "other options")
@@ -909,8 +912,8 @@ def main():
         os.makedirs(paths.build_pbuilder_path, exist_ok=True)
 
         actions = {
-            PBUILDER_CREATE: 'create',
-            PBUILDER_UPDATE: 'update'
+            PbuilderAction.CREATE: 'create',
+            PbuilderAction.UPDATE: 'update'
         }
 
         sh(['sudo', 'pbuilder', actions[pbuilder_action],
@@ -927,7 +930,7 @@ def main():
         sys.exit(0)
 
     if pristine:
-        if action in [ACTION_CLEAN, ACTION_FULL_CLEAN, ACTION_BUILD]:
+        if action in [Action.CLEAN, Action.FULL_CLEAN, Action.BUILD]:
             out("ERROR: --pristine and --pristine_bare must not be used along with --clean, "
                 "--full_clean and --build")
             sys.exit(1)
@@ -964,27 +967,27 @@ def main():
 
     if action is None:
         out("WARN: Action not specified. Defaulting to compile+package+install")
-        action = ACTION_INSTALL
+        action = Action.INSTALL
 
     # do work
-    if action == ACTION_FULL_CLEAN:
+    if action == Action.FULL_CLEAN:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             pr.reconf()
             pr.clean()
 
-    elif action == ACTION_CLEAN:
+    elif action == Action.CLEAN:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             pr.clean()
 
-    elif action == ACTION_BUILD:
+    elif action == Action.BUILD:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             pr.build()
             pr.check_build(do_check)
 
-    elif action == ACTION_PACKAGE:
+    elif action == Action.PACKAGE:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             if pristine:
@@ -994,7 +997,7 @@ def main():
                 pr.check_build(do_check)
                 pr.package(copy_build_files=copy_build_files)
 
-    elif action == ACTION_PACKAGE_SOURCE:
+    elif action == Action.PACKAGE_SOURCE:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             if pristine:
@@ -1004,7 +1007,7 @@ def main():
                 pr.check_build(do_check)
                 pr.package(do_source=True, copy_build_files=copy_build_files)
 
-    elif action == ACTION_INSTALL:
+    elif action == Action.INSTALL:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
 
@@ -1019,14 +1022,14 @@ def main():
             pr.install()
             pr.debinstall()
 
-    elif action == ACTION_REINSTALL:
+    elif action == Action.REINSTALL:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             out("Installing project: \'{0}\'".format(p))
             pr.install()
             pr.debinstall()
 
-    elif action == ACTION_DEBINSTALL:
+    elif action == Action.DEBINSTALL:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
 
@@ -1040,7 +1043,7 @@ def main():
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
 
-    elif action == ACTION_DEBREINSTALL:
+    elif action == Action.DEBREINSTALL:
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             out("Installing project: \'{0}\'".format(p))
