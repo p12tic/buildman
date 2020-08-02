@@ -540,7 +540,7 @@ class Project:
         out('ERROR: VCS and project type not supported')
         sys.exit(1)
 
-    def package(self, do_source=False):
+    def package(self, do_source=False, copy_build_files=False):
         out('Packaging project \'{0}\''.format(self.proj_name))
 
         base, version, tar_base, ext, dist_file = self.make_distributable()
@@ -574,27 +574,24 @@ class Project:
         self.import_debian_dir(tar_file, tar_path)
 
         # Make debian package
-        self.debuild(tar_path, do_source)
+        self.debuild(tar_path, do_source, copy_build_files)
 
     # Returns arguments for dpkg package signing utility
     def get_key_args(self):
         key = get_config_debian_sign_key()
         if key is None:
-            return ['-us, -uc']
+            return ['-us', '-uc']
         return ['-k' + key]
 
     # Runs debuild in the tar_path directory
-    def debuild(self, tar_path, do_source):
+    def debuild(self, tar_path, do_source, copy_build_files):
         key_args = self.get_key_args()
 
         if do_source is True:
             r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(get_config_cpu_cores()),
                     '--no-lintian', '-S', '-sa'] + key_args,
                    cwd=tar_path)
-            if r != 0:
-                out("ERROR: Building project {0} failed".format(self.proj_name))
-                sys.exit(1)
-        else:
+        elif copy_build_files is True:
             r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(get_config_cpu_cores()),
                     '--no-lintian',
                     '--build-hook=\"{0}\"'.format(
@@ -603,9 +600,13 @@ class Project:
                     '-sa'] + key_args,
                    cwd=tar_path,
                    env={'P12_BUILD_PATH': self.build_path})
-            if r != 0:
-                out("ERROR: Building project {0} failed".format(self.proj_name))
-                sys.exit(1)
+        else:
+            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(get_config_cpu_cores()),
+                    '--no-lintian', '-sa'] + key_args,
+                   cwd=tar_path)
+        if r != 0:
+            out("ERROR: Building project {0} failed".format(self.proj_name))
+            sys.exit(1)
 
     def clean_path(self, path):
         if os.path.isdir(path):
@@ -771,6 +772,8 @@ Options:
 
  --pbuilder-dist <distribution> - sets the pbuilder distribution
 
+ --reuse-build-files - reuses build files in packaging
+
  --help  - displays this text
  """)
     # Indentation
@@ -856,6 +859,7 @@ def main():
     pristine_bare = False
     use_pbuilder = False
     pbuilder_action = None
+    copy_build_files = False
 
     sys.argv.pop(0)
     args = iter(sys.argv)
@@ -893,6 +897,8 @@ def main():
             pbuilder_action = PBUILDER_UPDATE
         elif arg == '--pbuilder-dist':
             paths.set_pbuilder_dist(next(args))
+        elif arg == '--reuse-build-files':
+            copy_build_files = True
         elif arg == '--help':
             show_help()
             sys.exit(1)
@@ -998,7 +1004,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package()
+                pr.package(copy_build_files=copy_build_files)
 
     elif action == ACTION_PACKAGE_SOURCE:
         for d, p in checked_projects:
@@ -1008,7 +1014,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package(do_source=True)
+                pr.package(do_source=True, copy_build_files=copy_build_files)
 
     elif action == ACTION_INSTALL:
         for d, p in checked_projects:
@@ -1019,7 +1025,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package()
+                pr.package(copy_build_files=copy_build_files)
 
             out("Installing project: \'{0}\'".format(p))
             pr.install()
@@ -1041,7 +1047,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package()
+                pr.package(copy_build_files=copy_build_files)
 
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
