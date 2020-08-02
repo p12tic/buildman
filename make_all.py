@@ -15,6 +15,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>
 
+import enum
 import os
 import glob
 import subprocess
@@ -125,14 +126,17 @@ def get_dir_mtime(path):
     return max_mtime
 
 
-BUILD_TYPE_NONE = 0
-BUILD_TYPE_AUTOTOOLS = 1
-BUILD_TYPE_CMAKE = 2
-BUILD_TYPE_QMAKE = 3
-BUILD_TYPE_MAKEFILE = 4
+class BuildType(enum.Enum):
+    NONE = 0
+    AUTOTOOLS = 1
+    CMAKE = 2
+    QMAKE = 3
+    MAKEFILE = 4
 
-VCS_TYPE_NONE = 0
-VCS_TYPE_GIT = 1
+
+class VcsType(enum.Enum):
+    NONE = 0
+    GIT = 1
 
 
 def get_configure_args(proj_name):
@@ -171,20 +175,20 @@ class Project:
 
         if (os.path.exists(self.code_path + '/configure') or
                 os.path.exists(self.code_path + '/configure.ac')):
-            return BUILD_TYPE_AUTOTOOLS
+            return BuildType.AUTOTOOLS
         if glob.glob(self.code_path + "/*.pro"):
-            return BUILD_TYPE_QMAKE
+            return BuildType.QMAKE
         if os.path.exists(self.code_path + '/CMakeLists.txt'):
-            return BUILD_TYPE_CMAKE
+            return BuildType.CMAKE
         if os.path.exists(self.code_path + "/Makefile"):
-            return BUILD_TYPE_MAKEFILE
-        return BUILD_TYPE_NONE
+            return BuildType.MAKEFILE
+        return BuildType.NONE
 
     def get_vcs_type(self):
 
         if os.path.isdir(self.code_path + '/.git'):
-            return VCS_TYPE_GIT
-        return VCS_TYPE_NONE
+            return VcsType.GIT
+        return VcsType.NONE
 
     def build(self):
         out('Configuring project \'{0}\''.format(self.proj_name))
@@ -194,7 +198,7 @@ class Project:
         out("Pkg build path: \'{0}\'".format(self.build_pkg_path))
         out("Pkg path: \'{0}\'".format(self.pkg_path))
 
-        if self.build_type == BUILD_TYPE_AUTOTOOLS:
+        if self.build_type == BuildType.AUTOTOOLS:
             # autotools project
 
             # get modification time of the build directory,
@@ -232,7 +236,7 @@ class Project:
             sh(['make', 'all', '-j{0}'.format(num_processors)],
                cwd=self.build_path)
 
-        elif self.build_type == BUILD_TYPE_CMAKE:
+        elif self.build_type == BuildType.CMAKE:
             # cmake project
 
             os.makedirs(self.build_path, exist_ok=True)
@@ -245,7 +249,7 @@ class Project:
             sh(['make', 'all', '-j{0}'.format(num_processors)],
                cwd=self.build_path)
 
-        elif self.build_type == BUILD_TYPE_QMAKE:
+        elif self.build_type == BuildType.QMAKE:
             # qmake project
             os.makedirs(self.paths.build_path, exist_ok=True)
 
@@ -264,7 +268,7 @@ class Project:
             sh(['make', 'all', '-j{0}'.format(num_processors)],
                cwd=self.paths.build_path)
 
-        elif self.build_type == BUILD_TYPE_MAKEFILE:
+        elif self.build_type == BuildType.MAKEFILE:
             # Simple makefile project. Rebuild everything on any update in the
             # source tree
 
@@ -309,9 +313,9 @@ class Project:
     def reconf(self):
         out('Reconfiguring project \'{0}\''.format(self.proj_name))
 
-        if self.build_type == BUILD_TYPE_AUTOTOOLS:
+        if self.build_type == BuildType.AUTOTOOLS:
             sh(['autoreconf'], cwd=self.code_path)
-        elif self.build_type == BUILD_TYPE_CMAKE:
+        elif self.build_type == BuildType.CMAKE:
             sh(['cmake', '.'], cwd=self.code_path)
 
     def check_build(self, do_check=True):
@@ -320,7 +324,7 @@ class Project:
 
         out('Checking project \'{0}\''.format(self.proj_name))
 
-        if self.build_type != BUILD_TYPE_NONE:
+        if self.build_type != BuildType.NONE:
             # launch make check
             mkpath = os.path.join(self.build_path, 'Makefile')
             if os.path.exists(mkpath):
@@ -499,13 +503,13 @@ class Project:
     def make_distributable(self):
 
         # Make a distributable archive
-        if self.build_type == BUILD_TYPE_AUTOTOOLS:
+        if self.build_type == BuildType.AUTOTOOLS:
             return self.make_distributable_make_dist()
 
-        if self.build_type == BUILD_TYPE_MAKEFILE and self.does_makefile_contain_dist_target():
+        if self.build_type == BuildType.MAKEFILE and self.does_makefile_contain_dist_target():
             return self.make_distributable_make_dist()
 
-        if self.vcs_type == VCS_TYPE_GIT:
+        if self.vcs_type == VcsType.GIT:
             return self.make_distributable_git_archive()
 
         out('ERROR: VCS and project type not supported')
