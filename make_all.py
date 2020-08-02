@@ -165,11 +165,12 @@ class VcsType(enum.Enum):
 
 
 def get_configure_args(proj_name):
-    if re.search(r'wnckmm', proj_name):
-        return ['--enable-maintainer-mode']
-    if re.search(r'glibmm', proj_name):
-        return ['--enable-maintainer-mode']
-    return ['--prefix=/usr']
+    config_path = os.path.join(os.environ['HOME'], '.config', 'p12build', 'configure-' + proj_name)
+    if not os.path.exists(config_path):
+        return ['--prefix=/usr/local']
+
+    with open(config_path) as f:
+        return f.readlines()
 
 
 def get_pbuilder_othermirror_opt(othermirror):
