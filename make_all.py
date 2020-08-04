@@ -49,12 +49,22 @@ def get_config():
         return _cached_config
 
 
-def get_config_cpu_cores():
-    return get_config().get('num_cores', 1)
+def get_config_key(project, key, default):
+    config = get_config()
+    if 'projects' in config and project in config['projects']:
+        config_project = config['projects'][project]
+        if key in config_project:
+            return config_project[key]
+
+    return config.get(key, default)
 
 
-def get_config_debian_sign_key():
-    return get_config().get('debian_sign_key', None)
+def get_config_cpu_cores(project):
+    return get_config_key(project, 'num_cores', 1)
+
+
+def get_config_debian_sign_key(project):
+    return get_config_key(project, 'debian_sign_key', None)
 
 
 # directory layout configuration
@@ -260,7 +270,7 @@ class Project:
 
             # build
             out('Building project \'{0}\''.format(self.proj_name))
-            sh(['make', 'all', '-j{0}'.format(get_config_cpu_cores())],
+            sh(['make', 'all', '-j{0}'.format(get_config_cpu_cores(self.proj_name))],
                cwd=self.build_path)
 
         elif self.build_type == BuildType.CMAKE:
@@ -273,7 +283,7 @@ class Project:
             sh(cmd, cwd=self.build_path)
 
             out('Building project \'{0}\''.format(self.proj_name))
-            sh(['make', 'all', '-j{0}'.format(get_config_cpu_cores())],
+            sh(['make', 'all', '-j{0}'.format(get_config_cpu_cores(self.proj_name))],
                cwd=self.build_path)
 
         elif self.build_type == BuildType.QMAKE:
@@ -292,7 +302,7 @@ class Project:
             sh(['qmake', '../{0}'.format(code_dir)], cwd=self.paths.build_path)
 
             out('Building project \'{0}\''.format(self.proj_name))
-            sh(['make', 'all', '-j{0}'.format(get_config_cpu_cores())],
+            sh(['make', 'all', '-j{0}'.format(get_config_cpu_cores(self.proj_name))],
                cwd=self.paths.build_path)
 
         elif self.build_type == BuildType.MAKEFILE:
@@ -315,7 +325,7 @@ class Project:
                 shutil.rmtree(self.build_path)
                 shutil.copytree(self.code_path, self.build_path)
 
-                sh(['make', 'all', '-j{0}'.format(get_config_cpu_cores())],
+                sh(['make', 'all', '-j{0}'.format(get_config_cpu_cores(self.proj_name))],
                    cwd=self.build_path)
         else:
             # No makefile -- nothing to build, only package. We expect that
@@ -357,7 +367,7 @@ class Project:
             if os.path.exists(mkpath):
                 mk = open(mkpath).read()
                 if re.search(r'\bcheck:', mk):
-                    sh(['make', 'check', '-j{0}'.format(get_config_cpu_cores())],
+                    sh(['make', 'check', '-j{0}'.format(get_config_cpu_cores(self.proj_name))],
                        cwd=self.build_path)
                 else:
                     out('... (no check rule)')
@@ -580,7 +590,7 @@ class Project:
 
     # Returns arguments for dpkg package signing utility
     def get_key_args(self):
-        key = get_config_debian_sign_key()
+        key = get_config_debian_sign_key(self.proj_name)
         if key is None:
             return ['-us', '-uc']
         return ['-k' + key]
@@ -589,12 +599,13 @@ class Project:
     def debuild(self, tar_path, do_source, copy_build_files):
         key_args = self.get_key_args()
 
+        num_cores = get_config_cpu_cores(self.proj_name)
         if do_source is True:
-            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(get_config_cpu_cores()),
+            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(num_cores),
                     '--no-lintian', '-S', '-sa'] + key_args,
                    cwd=tar_path)
         elif copy_build_files is True:
-            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(get_config_cpu_cores()),
+            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(num_cores),
                     '--no-lintian',
                     '--build-hook=\"{0}\"'.format(
                         self.paths.copy_build_files_path,
@@ -603,7 +614,7 @@ class Project:
                    cwd=tar_path,
                    env={'P12_BUILD_PATH': self.build_path})
         else:
-            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(get_config_cpu_cores()),
+            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(num_cores),
                     '--no-lintian', '-sa'] + key_args,
                    cwd=tar_path)
         if r != 0:
