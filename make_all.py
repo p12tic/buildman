@@ -612,23 +612,22 @@ class Project:
         key_args = self.get_key_args()
 
         num_cores = get_config_cpu_cores(self.proj_name)
+
+        cmd = ['debuild']
+        if True:
+            cmd.append('--prepend-path=/usr/lib/ccache')
+        cmd += ['-eDEB_BUILD_OPTIONS=parallel={}'.format(num_cores), '--no-lintian']
+
         if do_source is True:
-            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(num_cores),
-                    '--no-lintian', '-S', '-sa'] + key_args,
+            r = sh(cmd + ['-S', '-sa'] + key_args,
                    cwd=tar_path)
         elif copy_build_files is True:
-            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(num_cores),
-                    '--no-lintian',
-                    '--build-hook=\"{0}\"'.format(
-                        self.paths.copy_build_files_path,
-                    ), '-e', 'P12_BUILD_PATH',
-                    '-sa'] + key_args,
+            r = sh(cmd + ['--build-hook=\"{0}\"'.format(self.paths.copy_build_files_path),
+                          '-e', 'P12_BUILD_PATH', '-sa'] + key_args,
                    cwd=tar_path,
                    env={'P12_BUILD_PATH': self.build_path})
         else:
-            r = sh(['debuild', '-eDEB_BUILD_OPTIONS=parallel={}'.format(num_cores),
-                    '--no-lintian', '-sa'] + key_args,
-                   cwd=tar_path)
+            r = sh(cmd + ['-sa'] + key_args, cwd=tar_path)
         if r != 0:
             out("ERROR: Building project {0} failed".format(self.proj_name))
             sys.exit(1)
