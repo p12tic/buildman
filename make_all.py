@@ -67,6 +67,10 @@ def get_config_debian_sign_key(project):
     return get_config_key(project, 'debian_sign_key', None)
 
 
+def get_config_dist_method(project):
+    return get_config_key(project, 'dist_method', None)
+
+
 # directory layout configuration
 class PathConf:
 
@@ -538,15 +542,23 @@ class Project:
         return False
 
     def make_distributable(self):
+        dist_method = get_config_dist_method(self.proj_name)
+        if dist_method not in [None, 'git', 'autotools', 'makefile']:
+            out('ERROR: Unsupported distribution method {}'.format(dist_method))
+            sys.exit(1)
 
         # Make a distributable archive
-        if self.build_type == BuildType.AUTOTOOLS:
+        if dist_method == 'autotools' or \
+                (dist_method is None and self.build_type == BuildType.AUTOTOOLS):
             return self.make_distributable_make_dist()
 
-        if self.build_type == BuildType.MAKEFILE and self.does_makefile_contain_dist_target():
+        if dist_method == 'makefile' or \
+                (self.build_type == BuildType.MAKEFILE and
+                 self.does_makefile_contain_dist_target()):
             return self.make_distributable_make_dist()
 
-        if self.vcs_type == VcsType.GIT:
+        if dist_method == 'git' or \
+                (dist_method is None and self.vcs_type == VcsType.GIT):
             return self.make_distributable_git_archive()
 
         out('ERROR: VCS and project type not supported')
