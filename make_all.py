@@ -728,7 +728,7 @@ class Project:
             self.build_pkgver_path = self.get_latest_pkgver()
 
         # TODO: switch to fnmatch
-        sh('pkg=$(echo *.deb); gksu "dpkg -i $pkg"', cwd=self.build_pkgver_path)
+        sh('pkg=$(echo *.deb); /usr/lib/x86_64-linux-gnu/libexec/kf5/kdesu -t -c "dpkg -i $pkg"', cwd=self.build_pkgver_path)
 
     def debinstall(self):
         if self.build_pkgver_path is None:
