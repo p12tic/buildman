@@ -467,28 +467,34 @@ class Project:
         tgzs = os.listdir(self.build_path)
         tgzs = [tgz for tgz in tgzs if tgz.endswith('.tar.gz') or
                 tgz.endswith('.tar.xz')]
+        tgzs.sort()  # don't depend on file order returned by listdir
+
+        if len(tgzs) == 0:
+            return None
+        if len(tgzs) == 1:
+            return tgzs[0]
+
+        basenames = set([os.path.splitext(tgz)[0] for tgz in tgzs])
+        if len(basenames) == 1:
+            return tgzs[0]
 
         dist_file = None
-        if len(tgzs) == 0:
-            pass
-        elif len(tgzs) == 1:
-            dist_file = tgzs[0]
-        else:
-            words = re.split(r'[-_ ]', self.proj_name)
-            max_tgz = ''
-            max_score = 0
-            for tgz in tgzs:
-                score = 0
-                for word in words:
-                    if tgz.find(word) != -1:
-                        score += len(word)
-                if score > max_score:
-                    max_tgz = tgz
-                    max_score = score
+        words = re.split(r'[-_ ]', self.proj_name)
+        max_tgz = ''
+        max_score = 0
+        for tgz in tgzs:
+            score = 0
+            for word in words:
+                if tgz.find(word) != -1:
+                    score += len(word)
+            if score > max_score:
+                max_tgz = tgz
+                max_score = score
 
-            if max_score > 0:
-                dist_file = max_tgz
-        return dist_file
+        if max_score == 0:
+            return None
+
+        return max_tgz
 
     ''' Creates a distributable by using make dist for autotools or makefile
         projects or exporting the current git work tree
@@ -505,7 +511,9 @@ class Project:
         dist_file = self.find_dist_tgz()
 
         if dist_file is None:
-            out("ERROR: Could not find distributable package")
+            out("ERROR: Could not find distributable package (searched {})".format(self.proj_name))
+            out("ERROR: Candidate files in {}: {}".format(self.build_path,
+                                                          ' '.join(os.listdir(self.build_path))))
             sys.exit(1)
 
         m = re.match(r'(^.*-[^-]*)\.(tar\.(?:gz|xz))$', dist_file, re.I)
