@@ -575,7 +575,7 @@ class Project:
         out('ERROR: VCS and project type not supported')
         sys.exit(1)
 
-    def package(self, do_source=False, copy_build_files=False):
+    def package(self, do_source=False, copy_build_files=False, do_check=True):
         out('Packaging project \'{0}\''.format(self.proj_name))
 
         base, version, tar_base, ext, dist_file = self.make_distributable()
@@ -609,7 +609,7 @@ class Project:
         self.import_debian_dir(tar_file, tar_path)
 
         # Make debian package
-        self.debuild(tar_path, do_source, copy_build_files)
+        self.debuild(tar_path, do_source, copy_build_files, do_check)
 
     # Returns arguments for dpkg package signing utility
     def get_key_args(self):
@@ -619,7 +619,7 @@ class Project:
         return ['-k' + key]
 
     # Runs debuild in the tar_path directory
-    def debuild(self, tar_path, do_source, copy_build_files):
+    def debuild(self, tar_path, do_source, copy_build_files, do_check):
         key_args = self.get_key_args()
 
         num_cores = get_config_cpu_cores(self.proj_name)
@@ -627,7 +627,23 @@ class Project:
         cmd = ['debuild']
         if True:
             cmd.append('--prepend-path=/usr/lib/ccache')
-        cmd += ['-eDEB_BUILD_OPTIONS=parallel={}'.format(num_cores), '--no-lintian']
+
+        build_options = [
+            f'parallel={num_cores}',
+        ]
+        build_profiles = []
+        if not do_check:
+            build_options += ['nocheck', 'nodoc']
+            build_profiles += ['nocheck', 'nodoc']
+
+        cmd += [
+            '-eDEB_BUILD_OPTIONS=' + ' '.join(build_options),
+            '--no-lintian'
+        ]
+        if build_profiles:
+            cmd += [
+                '-eDEB_BUILD_PROFILES=' + ' '.join(build_profiles),
+            ]
 
         if do_source is True:
             r = sh(cmd + ['-S', '-sa'] + key_args,
@@ -1040,7 +1056,7 @@ def main():
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
-                pr.package(copy_build_files=copy_build_files)
+                pr.package(copy_build_files=copy_build_files, do_check=do_check)
 
     elif action == Action.PACKAGE_SOURCE:
         for d, p in checked_projects:
@@ -1050,7 +1066,7 @@ def main():
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
-                pr.package(do_source=True, copy_build_files=copy_build_files)
+                pr.package(do_source=True, copy_build_files=copy_build_files, do_check=do_check)
 
     elif action == Action.INSTALL:
         for d, p in checked_projects:
@@ -1061,7 +1077,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package(copy_build_files=copy_build_files)
+                pr.package(copy_build_files=copy_build_files, do_check=do_check)
 
             out("Installing project: \'{0}\'".format(p))
             pr.install()
@@ -1083,7 +1099,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package(copy_build_files=copy_build_files)
+                pr.package(copy_build_files=copy_build_files, do_check=do_check)
 
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
