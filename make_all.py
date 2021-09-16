@@ -792,6 +792,13 @@ def get_available_projects(dirs):
     return available_projects
 
 
+def fill_project_name_dot(project):
+    if project != '.':
+        return project
+
+    return os.path.basename(os.getcwd())
+
+
 def print_available_projects(project_dirs, deb_project_dirs):
     out("Available projects: ")
     for d, p in get_available_projects(project_dirs):
@@ -935,7 +942,7 @@ def main():
     if args.reuse_build_files:
         copy_build_files = True
 
-    projects_to_build = args.projects
+    projects_to_build = [fill_project_name_dot(p) for p in args.projects]
 
     if pbuilder_action is not None:
         if pristine or pristine_bare or action is not None:
