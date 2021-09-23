@@ -552,20 +552,26 @@ class Project:
                 return True
         return False
 
-    def make_distributable(self):
+    def make_distributable(self, use_dist=False):
         dist_method = get_config_dist_method(self.proj_name)
         if dist_method not in [None, 'git', 'autotools', 'makefile']:
             out('ERROR: Unsupported distribution method {}'.format(dist_method))
             sys.exit(1)
 
         # Make a distributable archive
+        if not use_dist:
+            if not self.vcs_type == VcsType.GIT:
+                out('ERROR: Must create distributable package when not using git sources')
+                sys.exit(1)
+            return self.make_distributable_git_archive()
+
         if dist_method == 'autotools' or \
                 (dist_method is None and self.build_type == BuildType.AUTOTOOLS):
             return self.make_distributable_make_dist()
 
         if dist_method == 'makefile' or \
                 (self.build_type == BuildType.MAKEFILE and
-                 self.does_makefile_contain_dist_target()):
+                self.does_makefile_contain_dist_target()):
             return self.make_distributable_make_dist()
 
         if dist_method == 'git' or \
@@ -575,10 +581,10 @@ class Project:
         out('ERROR: VCS and project type not supported')
         sys.exit(1)
 
-    def package(self, do_source=False, copy_build_files=False, do_check=True):
+    def package(self, do_source=False, copy_build_files=False, do_check=True, use_dist=False):
         out('Packaging project \'{0}\''.format(self.proj_name))
 
-        base, version, tar_base, ext, dist_file = self.make_distributable()
+        base, version, tar_base, ext, dist_file = self.make_distributable(use_dist=use_dist)
 
         out('File: {0}'.format(dist_file))
         out('Name: {0}; version: {1}'.format(base, version))
@@ -854,6 +860,7 @@ def main():
     action = None
     do_check = True
     do_build = True
+    use_dist = False
     pristine = False
     pristine_bare = False
     use_pbuilder = False
@@ -887,6 +894,9 @@ def main():
                         help='Does not build project before building a package')
     parser.add_argument('--no-check', action='store_true', default=False,
                         help='Disables tests after building a package')
+    parser.add_argument('--use-dist', action='store_true', default=False,
+                        help='Build distributable package using make dist or equivalent when ' +
+                        'packaging')
     parser.add_argument('--debreinstall', action='store_true', default=False,
                         help='Reinstalls most recently built binary packages to the local ' +
                         'repository')
@@ -938,6 +948,8 @@ def main():
         do_check = False
     if args.no_build:
         do_build = False
+    if args.use_dist:
+        use_dist = True
     if args.pristine:
         pristine = True
     if args.pristine_bare:
@@ -1056,7 +1068,7 @@ def main():
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
-                pr.package(copy_build_files=copy_build_files, do_check=do_check)
+                pr.package(copy_build_files=copy_build_files, do_check=do_check, use_dist=use_dist)
 
     elif action == Action.PACKAGE_SOURCE:
         for d, p in checked_projects:
@@ -1066,7 +1078,8 @@ def main():
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
-                pr.package(do_source=True, copy_build_files=copy_build_files, do_check=do_check)
+                pr.package(do_source=True, copy_build_files=copy_build_files, do_check=do_check,
+                           use_dist=use_dist)
 
     elif action == Action.INSTALL:
         for d, p in checked_projects:
@@ -1077,7 +1090,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package(copy_build_files=copy_build_files, do_check=do_check)
+                pr.package(copy_build_files=copy_build_files, do_check=do_check, use_dist=use_dist)
 
             out("Installing project: \'{0}\'".format(p))
             pr.install()
@@ -1099,7 +1112,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package(copy_build_files=copy_build_files, do_check=do_check)
+                pr.package(copy_build_files=copy_build_files, do_check=do_check, use_dist=use_dist)
 
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
