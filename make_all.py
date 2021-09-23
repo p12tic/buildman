@@ -471,11 +471,10 @@ class Project:
         if len(tgzs) == 1:
             return tgzs[0]
 
-        basenames = set([os.path.splitext(tgz)[0] for tgz in tgzs])
+        basenames = {os.path.splitext(tgz)[0] for tgz in tgzs}
         if len(basenames) == 1:
             return tgzs[0]
 
-        dist_file = None
         words = re.split(r'[-_ ]', self.proj_name)
         max_tgz = ''
         max_score = 0
@@ -568,7 +567,7 @@ class Project:
 
         if dist_method == 'makefile' or \
                 (self.build_type == BuildType.MAKEFILE and
-                self.does_makefile_contain_dist_target()):
+                 self.does_makefile_contain_dist_target()):
             return self.make_distributable_make_dist()
 
         if dist_method == 'git' or \
@@ -753,7 +752,8 @@ class Project:
             self.build_pkgver_path = self.get_latest_pkgver()
 
         # TODO: switch to fnmatch
-        sh('pkg=$(echo *.deb); /usr/lib/x86_64-linux-gnu/libexec/kf5/kdesu -t -c "dpkg -i $pkg"', cwd=self.build_pkgver_path)
+        sh('pkg=$(echo *.deb); /usr/lib/x86_64-linux-gnu/libexec/kf5/kdesu -t -c "dpkg -i $pkg"',
+           cwd=self.build_pkgver_path)
 
     def debinstall(self):
         if self.build_pkgver_path is None:
