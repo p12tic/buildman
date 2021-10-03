@@ -577,7 +577,12 @@ class Project:
         out('ERROR: VCS and project type not supported')
         sys.exit(1)
 
-    def package(self, do_source=False, do_check=True, use_dist=False):
+    def get_pkgver_dirname(self, version, arch):
+        if arch is None:
+            return version
+        return f"{version}_{arch}"
+
+    def package(self, do_source=False, do_check=True, use_dist=False, arch=None):
         out('Packaging project \'{0}\''.format(self.proj_name))
 
         base, version, tar_base, ext, dist_file = self.make_distributable(use_dist=use_dist)
@@ -586,7 +591,8 @@ class Project:
         out('Name: {0}; version: {1}'.format(base, version))
         out('Tar-dir: {0}'.format(tar_base))
 
-        self.build_pkgver_path = os.path.join(self.build_pkg_path, version)
+        self.build_pkgver_path = os.path.join(self.build_pkg_path,
+                                              self.get_pkgver_dirname(version, arch))
         tar_file = '{0}/{1}_{2}.orig.{3}'.format(self.build_pkgver_path, base,
                                                  version, ext)
         tar_path = os.path.join(self.build_pkgver_path, tar_base)
@@ -611,7 +617,7 @@ class Project:
         self.import_debian_dir(tar_file, tar_path)
 
         # Make debian package
-        self.debuild(tar_path, do_source, do_check)
+        self.debuild(tar_path, do_source, do_check, arch)
 
     # Returns arguments for dpkg package signing utility
     def get_key_args(self):
@@ -621,7 +627,7 @@ class Project:
         return ['-k' + key]
 
     # Runs debuild in the tar_path directory
-    def debuild(self, tar_path, do_source, do_check):
+    def debuild(self, tar_path, do_source, do_check, arch):
         key_args = self.get_key_args()
 
         num_cores = get_config_cpu_cores(self.proj_name)
@@ -646,6 +652,9 @@ class Project:
             cmd += [
                 '-eDEB_BUILD_PROFILES=' + ' '.join(build_profiles),
             ]
+
+        if arch is not None:
+            cmd += [f'-a{arch}']
 
         if do_source is True:
             r = sh(cmd + ['-S', '-sa'] + key_args,
@@ -888,6 +897,8 @@ def main():
     parser.add_argument('--use-dist', action='store_true', default=False,
                         help='Build distributable package using make dist or equivalent when ' +
                         'packaging')
+    parser.add_argument('--arch', type=str, default=None,
+                        help='Override the architecture for packaging')
     parser.add_argument('--debreinstall', action='store_true', default=False,
                         help='Reinstalls most recently built binary packages to the local ' +
                         'repository')
@@ -1054,7 +1065,7 @@ def main():
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
-                pr.package(do_check=do_check, use_dist=use_dist)
+                pr.package(do_check=do_check, use_dist=use_dist, arch=args.arch)
 
     elif action == Action.PACKAGE_SOURCE:
         for d, p in checked_projects:
@@ -1064,7 +1075,8 @@ def main():
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
-                pr.package(do_source=True, do_check=do_check, use_dist=use_dist)
+                pr.package(do_source=True, do_check=do_check, use_dist=use_dist,
+                           arch=args.arch)
 
     elif action == Action.INSTALL:
         for d, p in checked_projects:
@@ -1073,9 +1085,9 @@ def main():
             if pristine:
                 pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare)
             else:
-                pr.build()
-                pr.check_build(do_check)
-                pr.package(do_check=do_check, use_dist=use_dist)
+                pr.build(do_build)
+                pr.check_build(do_build and do_check)
+                pr.package(do_check=do_check, use_dist=use_dist, arch=args.arch)
 
             out("Installing project: \'{0}\'".format(p))
             pr.install()
@@ -1097,7 +1109,7 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package(do_check=do_check, use_dist=use_dist)
+                pr.package(do_check=do_check, use_dist=use_dist, arch=args.arch)
 
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
