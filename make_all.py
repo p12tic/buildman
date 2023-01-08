@@ -71,6 +71,10 @@ def get_config_dist_method(project):
     return get_config_key(project, 'dist_method', None)
 
 
+def get_config_embedded_packaging_dir(project):
+    return get_config_key(project, 'embedded_packaging_dir', None)
+
+
 # directory layout configuration
 class PathConf:
 
@@ -383,15 +387,30 @@ class Project:
             out('... (no Makefile)')
 
     def find_debian_folder(self):
-        for base_path in [self.pkg_path, self.code_path]:
-            debian_path = os.path.join(base_path, 'debian')
-            if os.path.isdir(debian_path):
-                return debian_path
+        embedded_packaging_dir = get_config_embedded_packaging_dir(self.proj_name)
+        if embedded_packaging_dir is not None:
+            embedded_packaging_dir = os.path.join(self.code_path, embedded_packaging_dir)
 
-        out('ERROR: debian folder could not be found')
-        sys.exit(1)
+        candidate_paths = [
+            ('embedded_packaging_dir', embedded_packaging_dir),
+            ('packaging', os.path.join(self.pkg_path, 'debian')),
+            ('code', os.path.join(self.code_path, 'debian')),
+        ]
+
+        for name, debian_path in candidate_paths:
+            if debian_path is None or not os.path.isdir(debian_path):
+                continue
+
+            out('Debian dir in {0} repo: {1}'.format(name, debian_path))
+            return debian_path
+
+        return None
 
     def extract_changelog_version(self, deb_folder):
+        if deb_folder is None:
+            out('ERROR: debian folder could not be found')
+            sys.exit(1)
+
         changelog_path = os.path.join(deb_folder, 'changelog')
         if not os.path.exists(changelog_path):
             out('ERROR: could not extract debian changelog')
@@ -423,18 +442,10 @@ class Project:
 
         ext_tar_debian_path = os.path.join(ext_tar_path, 'debian')
 
-        candidate_paths = [
-            ('packaging', os.path.join(self.pkg_path, 'debian')),
-            ('code', os.path.join(self.code_path, 'debian')),
-        ]
+        debian_path = self.find_debian_folder()
 
-        for name, debian_path in candidate_paths:
-            if not os.path.isdir(debian_path):
-                continue
-
-            out('Debian dir in {0} repo: {1}'.format(name, debian_path))
-
-            if (os.path.exists(ext_tar_debian_path)):
+        if debian_path is not None:
+            if os.path.exists(ext_tar_debian_path):
                 out("WARN: Debian dir comes with source package too. " +
                     "Overwriting")
                 shutil.rmtree(ext_tar_debian_path)
