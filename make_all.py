@@ -1066,6 +1066,7 @@ def main():
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
                 pr.package(do_check=do_check, use_dist=use_dist, arch=args.arch)
+                out('Packages placed in: ' + pr.build_pkgver_path)
 
     elif action == Action.PACKAGE_SOURCE:
         for d, p in checked_projects:
@@ -1077,6 +1078,7 @@ def main():
                 pr.check_build(do_build and do_check)
                 pr.package(do_source=True, do_check=do_check, use_dist=use_dist,
                            arch=args.arch)
+                out('Packages placed in: ' + pr.build_pkgver_path)
 
     elif action == Action.INSTALL:
         for d, p in checked_projects:
