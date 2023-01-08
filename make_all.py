@@ -531,13 +531,31 @@ class Project:
         base, version, _ = \
             self.extract_changelog_version(self.find_debian_folder())
         tar_base = base + '-' + version
-        dist_file = tar_base + '.tar.gz'
-        sh(['git', 'archive', '--worktree-attributes',
-            '--prefix=' + tar_base + '/', 'HEAD', '--format=tar.gz',
-            '-o', dist_file],
-           cwd=self.code_path)
 
-        dist_file = os.path.join(self.code_path, dist_file)
+        dist_file = os.path.join(self.code_path, tar_base + '.tar.gz')
+
+        if os.path.isfile(os.path.join(self.code_path, '.gitmodules')):
+            dist_file_tar = os.path.join(self.code_path, tar_base + '.tar')
+
+            sh(['git', 'archive', '--worktree-attributes',
+                '--prefix=' + tar_base + '/', 'HEAD',
+                '-o', dist_file_tar],
+               cwd=self.code_path)
+
+            sh(['git', 'submodule', 'foreach', '--recursive',
+                f"git archive --worktree-attributes --prefix={tar_base + '/$path/'} " +
+                "--output=$sha1.tar HEAD && " +
+                f"tar --concatenate --file={os.path.abspath(dist_file_tar)} $sha1.tar && rm $sha1.tar"],
+                cwd=self.code_path)
+
+            # will automatically remove dist_file_tar and create dist_file
+            sh(['gzip', '-f', dist_file_tar], cwd=self.code_path)
+        else:
+            sh(['git', 'archive', '--worktree-attributes',
+                '--prefix=' + tar_base + '/', 'HEAD', '--format=tar.gz',
+                '-o', dist_file],
+               cwd=self.code_path)
+
         return (base, version, tar_base, 'tar.gz', dist_file)
 
     # Checks the project makefile for dist target
