@@ -613,9 +613,10 @@ class Project:
         sys.exit(1)
 
     def get_pkgver_dirname(self, version, arch):
-        if arch is None:
-            return version
-        return f"{version}_{arch}"
+        parts = [version, self.paths.dist_suite]
+        if arch is not None:
+            parts.append(arch)
+        return '_'.join(parts)
 
     def package(self, do_source=False, do_check=True, use_dist=False, use_pbuilder=False,
                 arch=None):
