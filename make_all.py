@@ -694,6 +694,23 @@ class Project:
     def compute_dsc_filename(self, name, version, deb_version):
         return '{0}_{1}-{2}.dsc'.format(name, version, deb_version)
 
+    def run_pbuilder_for_dsc(self, dsc_path, build_path):
+        out("Using dsc: \'{0}\'".format(dsc_path))
+        if not os.path.isfile(dsc_path):
+            out("ERROR: Could not find .dsc file")
+            sys.exit(1)
+
+        sh(['sudo', 'pbuilder', 'build',
+            '--buildplace', self.paths.pbuilder_workdir_path,
+            '--basetgz', self.paths.pbuilder_tgz,
+            '--mirror', self.paths.pbuilder_mirror
+            ] + get_pbuilder_othermirror_opt(
+                self.paths.pbuilder_othermirror) + [
+            '--aptcache', self.paths.pbuilder_cache_path,
+            '--components', 'main',
+            '--buildresult', build_path,
+            dsc_path], cwd=self.paths.build_pbuilder_path)
+
     def package_pristine(self, do_source=False, use_pbuilder=False, bare=False):
         if not use_pbuilder:
             out("Packaging pristine sources")
@@ -744,22 +761,7 @@ class Project:
 
             if use_pbuilder:
                 self.clean_path(build_path)
-
-                out("Using dsc: \'{0}\'".format(dsc_path))
-                if not os.path.isfile(dsc_path):
-                    out("ERROR: Could not find .dsc file")
-                    sys.exit(1)
-
-                sh(['sudo', 'pbuilder', 'build',
-                    '--buildplace', self.paths.pbuilder_workdir_path,
-                    '--basetgz', self.paths.pbuilder_tgz,
-                    '--mirror', self.paths.pbuilder_mirror
-                    ] + get_pbuilder_othermirror_opt(
-                        self.paths.pbuilder_othermirror) + [
-                    '--aptcache', self.paths.pbuilder_cache_path,
-                    '--components', 'main',
-                    '--buildresult', build_path,
-                    dsc_path], cwd=self.paths.build_pbuilder_path)
+                self.run_pbuilder_for_dsc(dsc_path, build_path)
 
         else:
             self.clean_path(build_path)
