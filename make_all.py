@@ -95,11 +95,11 @@ class PathConf:
         if '-' in dist:
             dist_suite = dist
             dist = dist.split('-')[0]
-            self.pbuilder_suite = dist_suite
+            self.dist_suite = dist_suite
         else:
-            self.pbuilder_suite = dist
+            self.dist_suite = dist
 
-        self.pbuilder_distribution = dist
+        self.dist_distribution = dist
         self.arch = resolve_architecture(arch)
 
         self.init_paths()
@@ -131,10 +131,10 @@ class PathConf:
         self.pbuilder_mirror = 'http://ftp.lt.debian.org/debian/'
 
         self.pbuilder_othermirror = None
-        if self.pbuilder_suite != self.pbuilder_distribution:
+        if self.dist_suite != self.dist_distribution:
             self.pbuilder_othermirror = \
                 'deb {0} {1} main'.format(self.pbuilder_mirror,
-                                          self.pbuilder_suite)
+                                          self.dist_suite)
 
         self.pbuilder_workdir_path = \
             os.path.join(self.build_pbuilder_path, "workdir")
@@ -145,7 +145,7 @@ class PathConf:
 
         self.pbuilder_tgz = \
             os.path.join(self.pbuilder_tgz_path,
-                         'base_' + self.pbuilder_suite + '-' + self.arch + '.tgz')
+                         'base_' + self.dist_suite + '-' + self.arch + '.tgz')
 
 
 def out(s):
@@ -1025,7 +1025,7 @@ def main():
         }
 
         sh(['sudo', 'pbuilder', actions[pbuilder_action],
-            '--distribution', paths.pbuilder_distribution,
+            '--distribution', paths.dist_distribution,
             '--debootstrapopts', '--variant=buildd',
             '--debootstrapopts', '--keyring',
             '--debootstrapopts', '/etc/apt/trusted.gpg',
