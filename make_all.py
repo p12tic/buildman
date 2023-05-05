@@ -888,8 +888,8 @@ def main():
         sys.exit(1)
 
     action = None
-    do_check = True
-    do_build = True
+    do_check = False
+    do_build = False
     use_dist = False
     pristine = False
     pristine_bare = False
@@ -919,10 +919,6 @@ def main():
     parser.add_argument('--debinstall', action='store_true', default=False,
                         help='Builds the source tree, creates a binary package and installs it ' +
                         'into to the local repository')
-    parser.add_argument('--no-build', action='store_true', default=False,
-                        help='Does not build project before building a package')
-    parser.add_argument('--no-check', action='store_true', default=False,
-                        help='Disables tests after building a package')
     parser.add_argument('--use-dist', action='store_true', default=False,
                         help='Build distributable package using make dist or equivalent when ' +
                         'packaging')
@@ -956,27 +952,25 @@ def main():
 
     if args.build:
         action = Action.BUILD
-    elif args.clean:
+        do_build = True
+    if args.clean:
         action = Action.CLEAN
-    elif args.full_clean:
+        do_check = True
+    if args.full_clean:
         action = Action.FULL_CLEAN
-    elif args.package:
+    if args.package:
         action = Action.PACKAGE
-    elif args.package_source:
+    if args.package_source:
         action = Action.PACKAGE_SOURCE
-    elif args.install:
+    if args.install:
         action = Action.INSTALL
-    elif args.reinstall:
+    if args.reinstall:
         action = Action.REINSTALL
-    elif args.debinstall:
+    if args.debinstall:
         action = Action.DEBINSTALL
-    elif args.debreinstall:
+    if args.debreinstall:
         action = Action.DEBREINSTALL
 
-    if args.no_check:
-        do_check = False
-    if args.no_build:
-        do_build = False
     if args.use_dist:
         use_dist = True
     if args.pristine:
