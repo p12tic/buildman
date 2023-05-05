@@ -670,8 +670,8 @@ class Project:
         ]
         build_profiles = []
         if not do_check:
-            build_options += ['nocheck', 'nodoc']
-            build_profiles += ['nocheck', 'nodoc']
+            build_options += ['nocheck', 'noinsttest', 'nodoc']
+            build_profiles += ['nocheck', 'noinsttest', 'nodoc']
 
         cmd += [
             '-eDEB_BUILD_OPTIONS=' + ' '.join(build_options),
