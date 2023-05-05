@@ -655,9 +655,7 @@ class Project:
 
         num_cores = get_config_cpu_cores(self.proj_name)
 
-        cmd = ['debuild']
-        if True:
-            cmd.append('--prepend-path=/usr/lib/ccache')
+        cmd = ['debuild', '--prepend-path=/usr/lib/ccache']
 
         build_options = [
             f'parallel={num_cores}',
