@@ -844,13 +844,6 @@ def get_available_projects(dirs):
     return available_projects
 
 
-def fill_project_name_dot(project):
-    if project != '.':
-        return project
-
-    return os.path.basename(os.getcwd())
-
-
 def print_available_projects(project_dirs, deb_project_dirs):
     out("Available projects: ")
     for d, p in get_available_projects(project_dirs):
@@ -990,8 +983,6 @@ def main():
     if args.pbuilder_dist is not None:
         paths.set_pbuilder_dist(args.pbuilder_dist)
 
-    projects_to_build = [fill_project_name_dot(p) for p in args.projects]
-
     if pbuilder_action is not None:
         if pristine or pristine_bare or action is not None:
             out("ERROR: --create-pbuilder must not be used along with any "
@@ -1033,8 +1024,22 @@ def main():
     # check received projects
     checked_projects = []
 
-    available_projects = get_available_projects(paths.project_dirs)
-    for proj in projects_to_build:
+    for proj in args.projects:
+        if proj == '.':
+            cwd = os.getcwd()
+            proj = os.path.basename(cwd)
+            checked_projects.append((cwd, proj))
+            if os.path.dirname(os.path.dirname(cwd)) != paths.root_path:
+                out("ERROR: . project name can only be used in project root")
+                sys.exit(1)
+            continue
+
+        if '/' in proj:
+            project_root, proj = proj.split('/')
+            project_dirs = [os.path.join(paths.root_path, project_root)]
+        else:
+            project_dirs = paths.project_dirs
+        available_projects = get_available_projects(project_dirs)
         for d, p in available_projects:
             if p == proj:
                 checked_projects += [(d, p)]
