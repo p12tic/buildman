@@ -441,29 +441,23 @@ class Project:
         # Debian config folder is not distributed
 
         ext_tar_debian_path = os.path.join(ext_tar_path, 'debian')
+        if os.path.exists(ext_tar_debian_path):
+            out("WARN: Debian dir is distributed with the source package")
+            return
 
         debian_path = self.find_debian_folder()
-
         if debian_path is not None:
-            if os.path.exists(ext_tar_debian_path):
-                out("WARN: Debian dir comes with source package too. " +
-                    "Overwriting")
-                shutil.rmtree(ext_tar_debian_path)
-
             shutil.copytree(debian_path, ext_tar_debian_path)
             return
 
-        if os.path.isdir(ext_tar_debian_path):
-            out("WARN: Debian dir is distributed with the source package")
-        else:
-            # No debian config folder exists -> create one and fail
-            sh(['dh_make', '-f', tar_file], cwd=ext_tar_path)
-            build_pkg_debian_path = os.path.join(self.build_pkg_path, 'debian')
-            shutil.copytree(ext_tar_debian_path, build_pkg_debian_path)
+        # No debian config folder exists -> create one and fail
+        sh(['dh_make', '-f', tar_file], cwd=ext_tar_path)
+        build_pkg_debian_path = os.path.join(self.build_pkg_path, 'debian')
+        shutil.copytree(ext_tar_debian_path, build_pkg_debian_path)
 
-            out("ERROR: Please update the debian configs at {0}".format(
-                build_pkg_debian_path))
-            sys.exit(1)
+        out("ERROR: Please update the debian configs at {0}".format(
+            build_pkg_debian_path))
+        sys.exit(1)
 
     # Finds the distributable tar.gz archive created by the make dist rule.
     # All tar.gz files within the build path are loosely matched with the
