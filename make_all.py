@@ -1033,22 +1033,15 @@ def main():
     # check received projects
     checked_projects = []
 
-    ident = None
     available_projects = get_available_projects(paths.project_dirs)
     for proj in projects_to_build:
         for d, p in available_projects:
             if p == proj:
-                ident = (d, p)
+                checked_projects += [(d, p)]
                 break
-            if p.find(proj) != -1:
-                checked_projects.append((d, p))
 
     for path in paths.build_path, paths.build_pkg_path:
         os.makedirs(path, exist_ok=True)
-
-    # if identical, ignore other
-    if ident is not None:
-        checked_projects = [(d, p)]
 
     if len(checked_projects) > 0:
         out("Found projects: ")
