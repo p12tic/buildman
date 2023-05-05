@@ -81,11 +81,15 @@ def resolve_architecture(arch):
     return arch
 
 
+def get_dist_suite():
+    return subprocess.check_output(['lsb_release', '-sc']).decode('utf-8').strip()
+
+
 # directory layout configuration
 class PathConf:
 
     def __init__(self):
-        self.set_pbuilder_dist('unstable', None)
+        self.set_pbuilder_dist(get_dist_suite(), None)
 
     def set_pbuilder_dist(self, dist, arch):
         if '-' in dist:
