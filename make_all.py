@@ -75,13 +75,19 @@ def get_config_embedded_packaging_dir(project):
     return get_config_key(project, 'embedded_packaging_dir', None)
 
 
+def resolve_architecture(arch):
+    if arch is None:
+        return subprocess.check_output(['dpkg', '--print-architecture']).decode('utf-8').strip()
+    return arch
+
+
 # directory layout configuration
 class PathConf:
 
     def __init__(self):
-        self.set_pbuilder_dist('unstable')
+        self.set_pbuilder_dist('unstable', None)
 
-    def set_pbuilder_dist(self, dist):
+    def set_pbuilder_dist(self, dist, arch):
         if '-' in dist:
             dist_suite = dist
             dist = dist.split('-')[0]
@@ -90,6 +96,8 @@ class PathConf:
             self.pbuilder_suite = dist
 
         self.pbuilder_distribution = dist
+        self.arch = resolve_architecture(arch)
+
         self.init_paths()
 
     def init_paths(self):
@@ -133,7 +141,7 @@ class PathConf:
 
         self.pbuilder_tgz = \
             os.path.join(self.pbuilder_tgz_path,
-                         'base_' + self.pbuilder_suite + '.tgz')
+                         'base_' + self.pbuilder_suite + '-' + self.arch + '.tgz')
 
 
 def out(s):
@@ -703,6 +711,7 @@ class Project:
         sh(['sudo', 'pbuilder', 'build',
             '--buildplace', self.paths.pbuilder_workdir_path,
             '--basetgz', self.paths.pbuilder_tgz,
+            '--architecture', self.paths.arch,
             '--mirror', self.paths.pbuilder_mirror
             ] + get_pbuilder_othermirror_opt(
                 self.paths.pbuilder_othermirror) + [
@@ -975,7 +984,7 @@ def main():
         pbuilder_action = PbuilderAction.UPDATE
 
     if args.pbuilder_dist is not None:
-        paths.set_pbuilder_dist(args.pbuilder_dist)
+        paths.set_pbuilder_dist(args.pbuilder_dist, args.arch)
 
     if pbuilder_action is not None:
         if pristine or pristine_bare or action is not None:
@@ -1001,6 +1010,7 @@ def main():
             '--debootstrapopts', '/etc/apt/trusted.gpg',
             '--buildplace', paths.pbuilder_workdir_path,
             '--basetgz', paths.pbuilder_tgz,
+            '--architecture', paths.arch,
             '--mirror', paths.pbuilder_mirror,
             ] + get_pbuilder_othermirror_opt(paths.pbuilder_othermirror) + [
             '--aptcache', paths.pbuilder_cache_path,
