@@ -613,8 +613,15 @@ class Project:
             return version
         return f"{version}_{arch}"
 
-    def package(self, do_source=False, do_check=True, use_dist=False, arch=None):
-        out('Packaging project \'{0}\''.format(self.proj_name))
+    def package(self, do_source=False, do_check=True, use_dist=False, use_pbuilder=False,
+                arch=None):
+        if use_pbuilder:
+            out(f'Packaging project \'{self.proj_name}\' using pbuilder')
+        else:
+            out(f'Packaging project \'{self.proj_name}\'')
+
+        if do_source and use_pbuilder:
+            raise Exception("package: do_source and use_pbuilder are incompatible")
 
         base, version, tar_base, ext, dist_file = self.make_distributable(use_dist=use_dist)
 
@@ -648,7 +655,17 @@ class Project:
         self.import_debian_dir(tar_file, tar_path)
 
         # Make debian package
-        self.debuild(tar_path, do_source, do_check, arch)
+        if use_pbuilder:
+            # Note that the architecture is None to use host architecture for source package build
+            self.debuild(tar_path, True, do_check, None)
+
+            _, __, deb_version = \
+                self.extract_changelog_version(self.find_debian_folder())
+            dsc_filename = self.compute_dsc_filename(base, version, deb_version)
+            dsc_path = os.path.join(self.build_pkgver_path, dsc_filename)
+            self.run_pbuilder_for_dsc(dsc_path, self.build_pkgver_path)
+        else:
+            self.debuild(tar_path, do_source, do_check, arch)
 
     # Returns arguments for dpkg package signing utility
     def get_key_args(self):
@@ -1090,7 +1107,8 @@ def main():
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
-                pr.package(do_check=do_check, use_dist=use_dist, arch=args.arch)
+                pr.package(do_check=do_check, use_dist=use_dist, use_pbuilder=use_pbuilder,
+                           arch=args.arch)
                 out('Packages placed in: ' + pr.build_pkgver_path)
 
     elif action == Action.PACKAGE_SOURCE:
@@ -1114,7 +1132,8 @@ def main():
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
-                pr.package(do_check=do_check, use_dist=use_dist, arch=args.arch)
+                pr.package(do_check=do_check, use_dist=use_dist, use_pbuilder=use_pbuilder,
+                           arch=args.arch)
 
             out("Installing project: \'{0}\'".format(p))
             pr.install()
@@ -1136,7 +1155,8 @@ def main():
             else:
                 pr.build()
                 pr.check_build(do_check)
-                pr.package(do_check=do_check, use_dist=use_dist, arch=args.arch)
+                pr.package(do_check=do_check, use_dist=use_dist, use_pbuilder=use_pbuilder,
+                           arch=args.arch)
 
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
