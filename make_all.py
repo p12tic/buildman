@@ -708,7 +708,7 @@ class Project:
             cmd += [f'-a{arch}']
 
         if do_source is True:
-            r = sh(cmd + ['-S', '-sa'] + key_args,
+            r = sh(cmd + ['-S', '-sa', '-d'] + key_args,
                    cwd=tar_path)
         else:
             r = sh(cmd + ['-sa'] + key_args, cwd=tar_path)
