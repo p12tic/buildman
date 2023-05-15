@@ -619,7 +619,7 @@ class Project:
         return '_'.join(parts)
 
     def package(self, do_source=False, do_check=True, use_dist=False, use_pbuilder=False,
-                arch=None):
+                arch=None, pbuilder_profiles=None):
         if use_pbuilder:
             out(f'Packaging project \'{self.proj_name}\' using pbuilder')
         else:
@@ -668,7 +668,8 @@ class Project:
                 self.extract_changelog_version(self.find_debian_folder())
             dsc_filename = self.compute_dsc_filename(base, version, deb_version)
             dsc_path = os.path.join(self.build_pkgver_path, dsc_filename)
-            self.run_pbuilder_for_dsc(dsc_path, self.build_pkgver_path)
+            self.run_pbuilder_for_dsc(dsc_path, self.build_pkgver_path,
+                                      pbuilder_profiles=pbuilder_profiles)
         else:
             self.debuild(tar_path, do_source, do_check, arch)
 
@@ -724,25 +725,34 @@ class Project:
     def compute_dsc_filename(self, name, version, deb_version):
         return '{0}_{1}-{2}.dsc'.format(name, version, deb_version)
 
-    def run_pbuilder_for_dsc(self, dsc_path, build_path):
+    def run_pbuilder_for_dsc(self, dsc_path, build_path, pbuilder_profiles=None):
         out("Using dsc: \'{0}\'".format(dsc_path))
         if not os.path.isfile(dsc_path):
             out("ERROR: Could not find .dsc file")
             sys.exit(1)
 
-        sh(['sudo', 'pbuilder', 'build',
+        cmd = [
+            'sudo', 'pbuilder', 'build',
             '--buildplace', self.paths.pbuilder_workdir_path,
             '--basetgz', self.paths.pbuilder_tgz,
             '--architecture', self.paths.arch,
             '--mirror', self.paths.pbuilder_mirror
-            ] + get_pbuilder_othermirror_opt(
-                self.paths.pbuilder_othermirror) + [
+        ]
+        cmd += get_pbuilder_othermirror_opt(self.paths.pbuilder_othermirror)
+        cmd += [
             '--aptcache', self.paths.pbuilder_cache_path,
+        ]
+        if pbuilder_profiles is not None:
+            cmd += ['--profiles', pbuilder_profiles]
+        cmd += [
             '--components', 'main',
             '--buildresult', build_path,
-            dsc_path], cwd=self.paths.build_pbuilder_path)
+            dsc_path,
+        ]
+        sh(cmd, cwd=self.paths.build_pbuilder_path)
 
-    def package_pristine(self, do_source=False, use_pbuilder=False, bare=False):
+    def package_pristine(self, do_source=False, use_pbuilder=False, bare=False,
+                         pbuilder_profiles=None):
         if not use_pbuilder:
             out("Packaging pristine sources")
         else:
@@ -792,7 +802,7 @@ class Project:
 
             if use_pbuilder:
                 self.clean_path(build_path)
-                self.run_pbuilder_for_dsc(dsc_path, build_path)
+                self.run_pbuilder_for_dsc(dsc_path, build_path, pbuilder_profiles=pbuilder_profiles)
 
         else:
             self.clean_path(build_path)
@@ -964,6 +974,8 @@ def main():
     parser.add_argument('--update-pbuilder', action='store_true', default=False,
                         help='Updates a pbuilder environment. Must not be used with any other ' +
                         'build-related option. --pbuilder-dist selects the distribution')
+    parser.add_argument('--pbuilder-profiles', type=str, default=None,
+                        help='Selects profiles to pass to pbuilder')
     parser.add_argument('--pbuilder-dist', type=str, default=None,
                         help='Selects the pbuilder distribution')
     args = parser.parse_args()
@@ -1004,6 +1016,7 @@ def main():
         pbuilder_action = PbuilderAction.CREATE
     elif args.update_pbuilder:
         pbuilder_action = PbuilderAction.UPDATE
+    pbuilder_profiles = args.pbuilder_profiles
 
     if args.pbuilder_dist is not None:
         paths.set_pbuilder_dist(args.pbuilder_dist, args.arch)
@@ -1108,12 +1121,13 @@ def main():
         for d, p in checked_projects:
             pr = Project(paths, p, d)
             if pristine:
-                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare)
+                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare,
+                                    pbuilder_profiles=pbuilder_profiles)
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
                 pr.package(do_check=do_check, use_dist=use_dist, use_pbuilder=use_pbuilder,
-                           arch=args.arch)
+                           arch=args.arch, pbuilder_profiles=pbuilder_profiles)
                 out('Packages placed in: ' + pr.build_pkgver_path)
 
     elif action == Action.PACKAGE_SOURCE:
@@ -1133,12 +1147,13 @@ def main():
             pr = Project(paths, p, d)
 
             if pristine:
-                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare)
+                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare,
+                                    pbuilder_profiles=pbuilder_profiles)
             else:
                 pr.build(do_build)
                 pr.check_build(do_build and do_check)
                 pr.package(do_check=do_check, use_dist=use_dist, use_pbuilder=use_pbuilder,
-                           arch=args.arch)
+                           arch=args.arch, pbuilder_profiles=pbuilder_profiles)
 
             out("Installing project: \'{0}\'".format(p))
             pr.install()
@@ -1156,12 +1171,13 @@ def main():
             pr = Project(paths, p, d)
 
             if pristine:
-                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare)
+                pr.package_pristine(use_pbuilder=use_pbuilder, bare=pristine_bare,
+                                    pbuilder_profiles=pbuilder_profiles)
             else:
                 pr.build()
                 pr.check_build(do_check)
                 pr.package(do_check=do_check, use_dist=use_dist, use_pbuilder=use_pbuilder,
-                           arch=args.arch)
+                           arch=args.arch, pbuilder_profiles=pbuilder_profiles)
 
             out("Installing project: \'{0}\'".format(p))
             pr.debinstall()
