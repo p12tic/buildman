@@ -29,6 +29,25 @@ import sys
 _cached_config = None
 
 
+def out(s):
+    if isinstance(s, list):
+        s = str(s)
+    sys.stdout.write(s + '\n')
+    sys.stdout.flush()
+
+
+def sh(cmd, cwd, env=None):
+    out('DBG: Executing {0}'.format(cmd))
+    if isinstance(cmd, list):
+        code = subprocess.call(cmd, cwd=cwd, env=env)
+    else:
+        code = subprocess.call(cmd, shell=True, cwd=cwd, env=env)
+    if code != 0:
+        out('ERROR: Command \'{0}\' returned code {1}'.format(cmd, code))
+        sys.exit(code)
+    return code
+
+
 def get_config():
     ''' Supported keys:
 
@@ -43,7 +62,8 @@ def get_config():
 
     config_path = os.path.join(os.environ['HOME'], '.config', 'p12build.json')
     if not os.path.exists(config_path):
-        raise Exception('Config path does not exist')
+        out("Config ~/.config/p12build.json does not exist, using defaults")
+        return {}
     with open(config_path) as config_f:
         _cached_config = json.load(config_f)
         return _cached_config
@@ -146,25 +166,6 @@ class PathConf:
         self.pbuilder_tgz = \
             os.path.join(self.pbuilder_tgz_path,
                          'base_' + self.dist_suite + '-' + self.arch + '.tgz')
-
-
-def out(s):
-    if isinstance(s, list):
-        s = str(s)
-    sys.stdout.write(s + '\n')
-    sys.stdout.flush()
-
-
-def sh(cmd, cwd, env=None):
-    out('DBG: Executing {0}'.format(cmd))
-    if isinstance(cmd, list):
-        code = subprocess.call(cmd, cwd=cwd, env=env)
-    else:
-        code = subprocess.call(cmd, shell=True, cwd=cwd, env=env)
-    if code != 0:
-        out('ERROR: Command \'{0}\' returned code {1}'.format(cmd, code))
-        sys.exit(code)
-    return code
 
 
 def get_dir_mtime(path):
