@@ -213,7 +213,7 @@ class PathConf:
         self.pbuilder_workdir_path = \
             os.path.join(self.build_pbuilder_path, "workdir")
         self.pbuilder_cache_path = \
-            os.path.join(self.build_pbuilder_path, "aptcache")
+            os.path.join(self.build_pbuilder_path, "aptcache", self.dist_suite)
         self.pbuilder_tgz_path = \
             os.path.join(self.build_pbuilder_path, "base_tgzs")
 
