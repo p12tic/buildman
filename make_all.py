@@ -1093,6 +1093,9 @@ def main():
             PbuilderAction.UPDATE: 'update'
         }
 
+        # Note: on distributions that don't ship i386 aptitude the following needs to be added
+        # to /etc/pbuilderrc:
+        # PBUILDERSATISFYDEPENDSCMD=/usr/lib/pbuilder/pbuilder-satisfydepends-apt
         sh(['sudo', 'pbuilder', actions[pbuilder_action],
             '--distribution', paths.dist_distribution,
             '--debootstrapopts', '--variant=buildd',
