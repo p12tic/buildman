@@ -105,6 +105,60 @@ def get_dist_suite():
     return subprocess.check_output(['lsb_release', '-sc']).decode('utf-8').strip()
 
 
+# Returns tuple of release URL and components
+def get_props_for_dist_suite(suite):
+    ubuntu_old_suites = [
+        "breezy",
+        "dapper",
+        "edgy",
+        "feisty",
+        "gutsy",
+        "hardy",
+        "hoary",
+        "intrepid",
+        "jaunty",
+        "karmic",
+        "lucid",
+        "maverick",
+        "natty",
+        "oneiric",
+        "precise",
+        "quantal",
+        "raring",
+        "saucy",
+        "trusty",
+        "utopic",
+        "vivid",
+        "wily",
+        "xenial",
+        "yakkety",
+        "zesty",
+        "artful",
+        "bionic",
+        "cosmic",
+        "disco",
+        "eoan",
+        "groovy",
+        "hirsute",
+        "impish",
+    ]
+    ubuntu_suites = [
+        "focal",
+        "jammy",
+        "kinetic",
+        "lunar",
+        "mantic",
+    ]
+    if suite in ubuntu_old_suites:
+        return ("http://old-releases.ubuntu.com/ubuntu/", ["main", "universe"])
+    elif suite in ubuntu_suites:
+        # "http://archive.ubuntu.com/ubuntu/" does not support HTTPS
+        return ("https://mirrors.edge.kernel.org/ubuntu/", ["main", "universe"])
+    else:
+        # assume Debian
+        return ("http://ftp.lt.debian.org/debian/", ["main"])
+
+
 # directory layout configuration
 class PathConf:
 
@@ -148,7 +202,7 @@ class PathConf:
                                  for fn in deb_project_fns]
 
         # Pbuilder-specific options
-        self.pbuilder_mirror = 'http://ftp.lt.debian.org/debian/'
+        self.pbuilder_mirror, self.pbuilder_components = get_props_for_dist_suite(self.dist_suite)
 
         self.pbuilder_othermirror = None
         if self.dist_suite != self.dist_distribution:
@@ -737,7 +791,7 @@ class Project:
             '--buildplace', self.paths.pbuilder_workdir_path,
             '--basetgz', self.paths.pbuilder_tgz,
             '--architecture', self.paths.arch,
-            '--mirror', self.paths.pbuilder_mirror
+            '--mirror', self.paths.pbuilder_mirror,
         ]
         cmd += get_pbuilder_othermirror_opt(self.paths.pbuilder_othermirror)
         cmd += [
@@ -746,7 +800,7 @@ class Project:
         if pbuilder_profiles is not None:
             cmd += ['--profiles', pbuilder_profiles]
         cmd += [
-            '--components', 'main',
+            '--components', " ".join(self.paths.pbuilder_components),
             '--buildresult', build_path,
             dsc_path,
         ]
@@ -1050,7 +1104,7 @@ def main():
             '--mirror', paths.pbuilder_mirror,
             ] + get_pbuilder_othermirror_opt(paths.pbuilder_othermirror) + [
             '--aptcache', paths.pbuilder_cache_path,
-            '--components', 'main'], cwd=paths.build_pbuilder_path)
+            '--components', " ".join(paths.pbuilder_components)], cwd=paths.build_pbuilder_path)
         sys.exit(0)
 
     if pristine:
