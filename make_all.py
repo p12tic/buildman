@@ -20,9 +20,10 @@ import enum
 import json
 import os
 import glob
+import re
 import subprocess
 import shutil
-import re
+import tempfile
 import sys
 
 
@@ -1121,6 +1122,25 @@ def main():
             ] + get_pbuilder_othermirror_opt(paths.pbuilder_othermirror) + [
             '--aptcache', paths.pbuilder_cache_path,
             '--components', " ".join(paths.pbuilder_components)], cwd=paths.build_pbuilder_path)
+
+        if pbuilder_action == PbuilderAction.CREATE and "-backports" in paths.dist_suite:
+            with tempfile.NamedTemporaryFile() as f:
+                lines = [
+                    '#!/bin/bash',
+                    'echo "Package: *" >> /etc/apt/preferences',
+                    f'echo "Pin: release a={paths.dist_suite}" >> /etc/apt/preferences',
+                    'echo "Pin-Priority: 500" >> /etc/apt/preferences',
+                ]
+                text = '\n'.join(lines)
+                f.write(text.encode("utf-8"))
+                f.flush()
+                os.chmod(f.name, 0o555)
+                sh(['sudo', 'pbuilder', "execute",
+                    '--basetgz', paths.pbuilder_tgz,
+                    '--architecture', paths.arch,
+                    "--save-after-exec",
+                    f.name], cwd=paths.build_pbuilder_path)
+
         sys.exit(0)
 
     if pristine:
