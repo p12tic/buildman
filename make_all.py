@@ -150,13 +150,25 @@ def get_props_for_dist_suite(suite):
         "mantic",
     ]
     if suite in ubuntu_old_suites:
-        return ("http://old-releases.ubuntu.com/ubuntu/", ["main", "universe"])
+        return (
+            "/etc/trusted.gpg",
+            "http://old-releases.ubuntu.com/ubuntu/",
+            ["main", "universe"]
+        )
     elif suite in ubuntu_suites:
         # "http://archive.ubuntu.com/ubuntu/" does not support HTTPS
-        return ("https://mirrors.edge.kernel.org/ubuntu/", ["main", "universe"])
+        return (
+            "/etc/trusted.gpg",
+            "https://mirrors.edge.kernel.org/ubuntu/",
+            ["main", "universe"]
+        )
     else:
         # assume Debian
-        return ("http://ftp.lt.debian.org/debian/", ["main"])
+        return (
+            "/usr/share/keyrings/debian-archive-keyring.gpg",
+            "https://deb.debian.org/debian/",
+            ["main", "contrib", "non-free"]
+        )
 
 
 # directory layout configuration
@@ -202,7 +214,8 @@ class PathConf:
                                  for fn in deb_project_fns]
 
         # Pbuilder-specific options
-        self.pbuilder_mirror, self.pbuilder_components = get_props_for_dist_suite(self.dist_suite)
+        self.pbuilder_keyring, self.pbuilder_mirror, self.pbuilder_components = \
+            get_props_for_dist_suite(self.dist_suite)
 
         self.pbuilder_othermirror = None
         if self.dist_suite != self.dist_distribution:
@@ -1100,7 +1113,7 @@ def main():
             '--distribution', paths.dist_distribution,
             '--debootstrapopts', '--variant=buildd',
             '--debootstrapopts', '--keyring',
-            '--debootstrapopts', '/etc/apt/trusted.gpg',
+            '--debootstrapopts', paths.pbuilder_keyring,
             '--buildplace', paths.pbuilder_workdir_path,
             '--basetgz', paths.pbuilder_tgz,
             '--architecture', paths.arch,
