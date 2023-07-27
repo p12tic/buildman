@@ -219,9 +219,9 @@ class PathConf:
 
         self.pbuilder_othermirror = None
         if self.dist_suite != self.dist_distribution:
+            components_str = " ".join(self.pbuilder_components)
             self.pbuilder_othermirror = \
-                'deb {0} {1} main'.format(self.pbuilder_mirror,
-                                          self.dist_suite)
+                f'deb {self.pbuilder_mirror} {self.dist_suite} {components_str}'
 
         self.pbuilder_workdir_path = \
             os.path.join(self.build_pbuilder_path, "workdir")
